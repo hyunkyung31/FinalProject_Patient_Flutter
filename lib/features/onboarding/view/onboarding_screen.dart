@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../model/onboarding_page.dart';
+import '../widgets/onboarding_scene.dart';
+import '../../../core/theme/app_colors.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key, required this.onComplete});
@@ -79,17 +81,34 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     itemCount: OnboardingPage.pages.length,
                     onPageChanged: (index) => setState(() => _index = index),
                     itemBuilder: (context, index) {
-                      final page = OnboardingPage.pages[index];
-                      return Semantics(
-                        key: ValueKey('onboarding-page-${index + 1}'),
-                        label:
-                            '${index + 1} / ${OnboardingPage.pages.length}. ${page.title}. ${page.description}. 안내 이미지의 화면과 수치는 예시입니다.',
-                        image: true,
-                        child: Image.asset(
-                          'assets/images/onboarding/${page.image}.png',
-                          fit: BoxFit.contain,
-                          excludeFromSemantics: true,
+                      return AnimatedBuilder(
+                        animation: _controller,
+                        child: OnboardingScene(
+                          key: ValueKey('onboarding-page-${index + 1}'),
+                          index: index,
+                          active: _index == index && !_saving,
                         ),
+                        builder: (context, child) {
+                          final current =
+                              _controller.hasClients &&
+                                  _controller.position.haveDimensions
+                              ? (_controller.page ?? _index.toDouble())
+                              : _index.toDouble();
+                          final distance = (current - index).abs().clamp(
+                            0.0,
+                            1.0,
+                          );
+                          final reduced = MediaQuery.disableAnimationsOf(
+                            context,
+                          );
+                          return Opacity(
+                            opacity: reduced ? 1 : 1 - distance * 0.7,
+                            child: Transform.translate(
+                              offset: Offset(0, reduced ? 0 : distance * 16),
+                              child: child,
+                            ),
+                          );
+                        },
                       );
                     },
                   ),
@@ -100,6 +119,35 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    Semantics(
+                      label: '전체 7단계 중 ${_index + 1}단계',
+                      child: ExcludeSemantics(
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            for (
+                              var i = 0;
+                              i < OnboardingPage.pages.length;
+                              i++
+                            )
+                              Container(
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 4,
+                                ),
+                                width: i == _index ? 22 : 7,
+                                height: 7,
+                                decoration: BoxDecoration(
+                                  color: i == _index
+                                      ? AppColors.navy
+                                      : AppColors.lightBlue,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
                     if (_error != null)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
