@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
+import '../widgets/bomi_greeting.dart';
+import '../../onboarding/view/onboarding_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -66,6 +68,21 @@ class DashboardScreen extends StatelessWidget {
                     ),
                   ),
                   IconButton(
+                    tooltip: '앱 사용 가이드',
+                    onPressed: () => Navigator.of(context).push<void>(
+                      MaterialPageRoute(
+                        builder: (guideContext) => OnboardingScreen(
+                          onComplete: () async =>
+                              Navigator.of(guideContext).pop(),
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.help_outline_rounded,
+                      color: AppColors.navy,
+                    ),
+                  ),
+                  IconButton(
                     tooltip: '알림',
                     onPressed: () => open(context, '알림'),
                     icon: const Icon(
@@ -111,36 +128,7 @@ class DashboardScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Semantics(
-                    label: '보미 캐릭터 임시 심볼',
-                    child: Container(
-                      width: 90,
-                      height: 115,
-                      decoration: BoxDecoration(
-                        color: AppColors.softPink,
-                        borderRadius: BorderRadius.circular(48),
-                      ),
-                      child: const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.favorite_rounded,
-                            color: AppColors.pink,
-                            size: 46,
-                          ),
-                          SizedBox(height: 6),
-                          Text(
-                            'BOMI',
-                            style: TextStyle(
-                              color: AppColors.navy,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 2,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                  const BomiGreeting(),
                 ],
               ),
               const SizedBox(height: 24),

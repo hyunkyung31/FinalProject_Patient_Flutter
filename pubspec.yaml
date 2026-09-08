@@ -34,6 +34,7 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:
@@ -56,6 +57,16 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/images/bomi/
+    - assets/images/onboarding/01_health_dashboard.png
+    - assets/images/onboarding/02_login_fingerprint.png
+    - assets/images/onboarding/03_appointment_medical_records.png
+    - assets/images/onboarding/04_blood_cad_cac.png
+    - assets/images/onboarding/05_ai_clinician_pdf.png
+    - assets/images/onboarding/06_health_mission_rewards.png
+    - assets/images/onboarding/07_ai_chatbot_prescription_pharmacy.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
