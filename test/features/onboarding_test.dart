@@ -16,6 +16,18 @@ class MemoryOnboardingRepository extends OnboardingRepository {
 }
 
 void main() {
+  setUp(() {
+    TestWidgetsFlutterBinding
+        .instance
+        .platformDispatcher
+        .accessibilityFeaturesTestValue = const FakeAccessibilityFeatures(
+      disableAnimations: true,
+    );
+  });
+  tearDown(() {
+    TestWidgetsFlutterBinding.instance.platformDispatcher
+        .clearAccessibilityFeaturesTestValue();
+  });
   testWidgets('First launch, all pages, finish, next launch and replay', (
     tester,
   ) async {
