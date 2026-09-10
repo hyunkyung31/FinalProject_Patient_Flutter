@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../home/view/dashboard_screen.dart';
 import '../../onboarding/repository/onboarding_repository.dart';
 import '../../onboarding/view/onboarding_screen.dart';
+import '../../auth/view/session_gate.dart';
 
 class StartupScreen extends StatefulWidget {
   const StartupScreen({super.key, this.repository});
@@ -23,7 +23,7 @@ class _StartupScreenState extends State<StartupScreen> {
 
   @override
   Widget build(BuildContext context) => _finished
-      ? const DashboardScreen()
+      ? const SessionGate()
       : FutureBuilder<bool>(
           future: _completed,
           builder: (context, snapshot) {
@@ -53,7 +53,7 @@ class _StartupScreenState extends State<StartupScreen> {
               );
             }
             return snapshot.data!
-                ? const DashboardScreen()
+                ? const SessionGate()
                 : OnboardingScreen(onComplete: _finish);
           },
         );
