@@ -10,6 +10,10 @@ class AuthService {
 
   final ApiClient _apiClient;
 
+  Future<void> logout() async {
+    await _apiClient.dio.post<void>(ApiEndpoints.logout);
+  }
+
   Future<AuthTokens> refreshTokens(String refreshToken) async {
     if (refreshToken.trim().isEmpty) {
       throw ArgumentError('리프레시 토큰이 없습니다.');

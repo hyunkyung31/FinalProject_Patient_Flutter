@@ -7,6 +7,7 @@ import '../../home/view/dashboard_screen.dart';
 import '../../record_link/view/patient_link_required_screen.dart';
 import '../repository/auth_repository.dart';
 import 'dev_login_screen.dart';
+import '../../reservation/repository/reservation_repository.dart';
 
 enum _SessionPage { loading, login, linked, unlinked, error }
 
@@ -20,12 +21,59 @@ class SessionGate extends StatefulWidget {
 
 class _SessionGateState extends State<SessionGate> {
   final _client = ApiClient();
+  late final _reservationRepository = ReservationRepository(_client);
   late final _repository =
       widget.repository ??
       AuthRepository(apiClient: _client, tokenStorage: TokenStorage());
   _SessionPage _page = _SessionPage.loading;
   bool _authenticated = false;
   String _error = '';
+  bool _logoutBusy = false;
+  bool _retryLogout = false;
+
+  Future<void> _confirmLogout() async {
+    if (_logoutBusy) return;
+    _logoutBusy = true;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('로그아웃할까요?'),
+        content: const Text('이 기기의 환자 앱에서 로그아웃합니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('로그아웃'),
+          ),
+        ],
+      ),
+    );
+    _logoutBusy = false;
+    if (!mounted || confirmed != true) return;
+    await _logout();
+  }
+
+  Future<void> _logout() async {
+    if (_logoutBusy) return;
+    _logoutBusy = true;
+    _retryLogout = true;
+    setState(() => _page = _SessionPage.loading);
+    try {
+      await _repository.logout();
+      if (!mounted) return;
+      _authenticated = false;
+      _retryLogout = false;
+      Navigator.of(context).popUntil((route) => route.isFirst);
+      setState(() => _page = _SessionPage.login);
+    } catch (_) {
+      _showError('로그아웃을 완료하지 못했어요. 연결 상태를 확인하고 다시 시도해 주세요.');
+    } finally {
+      _logoutBusy = false;
+    }
+  }
 
   @override
   void initState() {
@@ -98,11 +146,15 @@ class _SessionGateState extends State<SessionGate> {
           onAuthenticated: _onAuthenticated,
         );
       case _SessionPage.unlinked:
-        return PatientLinkRequiredScreen(onRefresh: _load);
+        return PatientLinkRequiredScreen(
+          onRefresh: _load,
+          reservationRepository: _reservationRepository,
+          onLogout: _confirmLogout,
+        );
       case _SessionPage.linked:
-        return const Column(
+        return Column(
           children: [
-            SafeArea(
+            const SafeArea(
               bottom: false,
               child: Material(
                 child: Padding(
@@ -111,7 +163,12 @@ class _SessionGateState extends State<SessionGate> {
                 ),
               ),
             ),
-            Expanded(child: DashboardScreen()),
+            Expanded(
+              child: DashboardScreen(
+                reservationRepository: _reservationRepository,
+                onLogout: _confirmLogout,
+              ),
+            ),
           ],
         );
       case _SessionPage.error:
@@ -125,7 +182,10 @@ class _SessionGateState extends State<SessionGate> {
                   children: [
                     Text(_error, textAlign: TextAlign.center),
                     const SizedBox(height: 16),
-                    FilledButton(onPressed: _load, child: const Text('다시 시도')),
+                    FilledButton(
+                      onPressed: _retryLogout ? _logout : _load,
+                      child: const Text('다시 시도'),
+                    ),
                   ],
                 ),
               ),

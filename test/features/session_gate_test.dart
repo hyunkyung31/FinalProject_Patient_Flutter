@@ -17,6 +17,16 @@ class GateRepository extends AuthRepository {
   int checks = 0;
   DioException? restoreError;
   DioException? linkError;
+  bool logoutFails = false;
+  int logouts = 0;
+
+  @override
+  Future<void> logout() async {
+    logouts++;
+    if (logoutFails) throw StateError('test logout failure');
+    cleared = true;
+    restored = false;
+  }
 
   @override
   Future<bool> restoreSession() async {
@@ -51,6 +61,41 @@ void main() {
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets('로그아웃 확인 후 로그인 화면으로 이동하고 재시작해도 유지된다', (tester) async {
+    await open(tester);
+    await tester.tap(find.byTooltip('로그아웃'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('취소'));
+    await tester.pumpAndSettle();
+    expect(repository.logouts, 0);
+    await tester.tap(find.byTooltip('로그아웃'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '로그아웃'));
+    await tester.pumpAndSettle();
+    expect(repository.cleared, isTrue);
+    expect(find.text('카카오 로그인/회원가입'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    await open(tester);
+    expect(find.text('카카오 로그인/회원가입'), findsOneWidget);
+  });
+
+  testWidgets('로그아웃 실패의 재시도는 세션 복원이 아닌 로그아웃을 호출한다', (tester) async {
+    repository.logoutFails = true;
+    await open(tester);
+    await tester.tap(find.byTooltip('로그아웃'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '로그아웃'));
+    await tester.pumpAndSettle();
+    expect(repository.cleared, isFalse);
+    expect(find.text('카카오 로그인/회원가입'), findsNothing);
+    repository.logoutFails = false;
+    await tester.tap(find.text('다시 시도'));
+    await tester.pumpAndSettle();
+    expect(repository.logouts, 2);
+    expect(repository.restores, 1);
+    expect(find.text('카카오 로그인/회원가입'), findsOneWidget);
+  });
 
   testWidgets('저장된 세션이 없으면 로그인 화면으로 이동한다', (tester) async {
     repository.restored = false;

@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../../core/network/api_endpoints.dart';
@@ -12,6 +13,22 @@ class AuthRepository {
   final ApiClient _apiClient;
   final TokenStorage tokenStorage;
   final AuthService _authService;
+
+  Future<void> logout() async {
+    try {
+      await _authService.logout();
+    } on DioException catch (error) {
+      if (error.response?.statusCode != 401) rethrow;
+      // 액세스 토큰만 만료됐다면 갱신 후 서버 세션 종료를 다시 요청합니다.
+      try {
+        if (await restoreSession()) await _authService.logout();
+      } on DioException catch (refreshError) {
+        if (refreshError.response?.statusCode != 401) rethrow;
+        // 갱신도 거부된 세션은 로컬 인증 정보를 제거합니다.
+      }
+    }
+    await clearSession();
+  }
 
   Future<bool> hasPatientLink() async {
     final response = await _apiClient.dio.get<Map<String, dynamic>>(

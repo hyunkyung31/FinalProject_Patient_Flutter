@@ -2,9 +2,14 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../widgets/bomi_greeting.dart';
 import '../../onboarding/view/onboarding_screen.dart';
+import '../../reservation/view/reservation_list_screen.dart';
+import '../../reservation/view/reservation_screen.dart';
+import '../../reservation/repository/reservation_repository.dart';
 
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
+  const DashboardScreen({super.key, this.reservationRepository, this.onLogout});
+  final Future<void> Function()? onLogout;
+  final ReservationRepository? reservationRepository;
   void open(BuildContext context, String title) {
     showModalBottomSheet<void>(
       context: context,
@@ -90,6 +95,12 @@ class DashboardScreen extends StatelessWidget {
                       color: AppColors.navy,
                     ),
                   ),
+                  if (onLogout != null)
+                    IconButton(
+                      tooltip: '로그아웃',
+                      onPressed: onLogout,
+                      icon: const Icon(Icons.logout, color: AppColors.navy),
+                    ),
                 ],
               ),
               const SizedBox(height: 24),
@@ -204,7 +215,12 @@ class DashboardScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(16),
                   ),
                 ),
-                onPressed: () => open(context, '진료 예약'),
+                onPressed: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        ReservationScreen(repository: reservationRepository),
+                  ),
+                ),
                 icon: const Icon(Icons.add_rounded),
                 label: const Text(
                   '진료 예약하기',
@@ -362,6 +378,15 @@ class DashboardScreen extends StatelessWidget {
       indicatorColor: AppColors.lightBlue,
       selectedIndex: 0,
       onDestinationSelected: (index) {
+        if (index == 1) {
+          Navigator.of(context).push<void>(
+            MaterialPageRoute(
+              builder: (_) =>
+                  ReservationListScreen(repository: reservationRepository),
+            ),
+          );
+          return;
+        }
         if (index != 0) open(context, ['홈', '예약', '건강관리', '내 정보'][index]);
       },
       destinations: const [

@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_patient/features/home/view/dashboard_screen.dart';
 
 void main() {
-  testWidgets('Dashboard fits a narrow phone and opens menu notice', (
+  testWidgets('Dashboard fits a narrow phone and opens reservation', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(360, 800);
@@ -15,8 +15,8 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.tap(find.text('진료 예약하기'));
     await tester.pumpAndSettle();
-    expect(find.text('이 기능은 준비 중이에요. 지금은 메인 화면 미리보기입니다.'), findsOneWidget);
-    await tester.tap(find.text('확인'));
+    expect(find.text('진료 예약을 시작해 볼까요?'), findsOneWidget);
+    await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.text('다가오는 진료'), findsOneWidget);
   });
