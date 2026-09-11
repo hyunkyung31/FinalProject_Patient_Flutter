@@ -1,14 +1,32 @@
 import 'package:flutter/material.dart';
 import '../../reservation/view/reservation_screen.dart';
+import '../../reservation/repository/reservation_repository.dart';
 
 class PatientLinkRequiredScreen extends StatelessWidget {
-  const PatientLinkRequiredScreen({super.key, this.onRefresh});
+  const PatientLinkRequiredScreen({
+    super.key,
+    this.onRefresh,
+    this.reservationRepository,
+    this.onLogout,
+  });
+  final ReservationRepository? reservationRepository;
   final Future<void> Function()? onRefresh;
+  final Future<void> Function()? onLogout;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('병원기록 연결')),
+      appBar: AppBar(
+        title: const Text('병원기록 연결'),
+        actions: [
+          if (onLogout != null)
+            IconButton(
+              tooltip: '로그아웃',
+              onPressed: onLogout,
+              icon: const Icon(Icons.logout),
+            ),
+        ],
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -66,7 +84,8 @@ class PatientLinkRequiredScreen extends StatelessWidget {
                   ),
                   onPressed: () => Navigator.of(context).push<void>(
                     MaterialPageRoute<void>(
-                      builder: (_) => const ReservationScreen(),
+                      builder: (_) =>
+                          ReservationScreen(repository: reservationRepository),
                     ),
                   ),
                   icon: const Icon(Icons.calendar_month_outlined),
