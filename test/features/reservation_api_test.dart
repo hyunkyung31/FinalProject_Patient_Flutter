@@ -25,6 +25,7 @@ class ReservationAdapter implements HttpClientAdapter {
   bool empty = false;
   bool failCancel = false;
   bool failList = false;
+  String? changedTime;
   @override
   Future<ResponseBody> fetch(
     RequestOptions options,
@@ -45,6 +46,7 @@ class ReservationAdapter implements HttpClientAdapter {
     }
     if (cancel) canceled = true;
     final data = reservationJson(status: canceled ? 'CANCELED' : 'REQUESTED');
+    if (changedTime != null) data['reserved_at'] = changedTime;
     return ResponseBody.fromString(
       jsonEncode(list ? (empty ? [] : [data]) : data),
       200,
@@ -70,6 +72,23 @@ void main() {
     repository = ReservationRepository(client);
   });
   tearDown(() => client.dispose());
+
+  testWidgets('서버에서 승인된 변경 시간은 목록 자동 갱신에 반영된다', (tester) async {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpWidget(
+      MaterialApp(home: ReservationListScreen(repository: repository)),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('예시 화면 보기'), findsNothing);
+    expect(find.text('다가오는 일정'), findsOneWidget);
+    expect(find.text('2099.09.15 · 10:30'), findsOneWidget);
+    adapter.changedTime = '2099-09-16T02:00:00Z';
+    await tester.pump(const Duration(seconds: 30));
+    await tester.pumpAndSettle();
+    expect(find.text('2099.09.16 · 11:00'), findsOneWidget);
+    expect(find.text('2099.09.15 · 10:30'), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   test('한국 시간 표시와 취소·지난 일정 분류, 상태 의미를 보존한다', () {
     final item = PatientReservation.fromJson(reservationJson());

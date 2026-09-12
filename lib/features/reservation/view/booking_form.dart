@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../model/booking_options.dart';
@@ -7,10 +6,18 @@ import '../repository/reservation_repository.dart';
 import 'patient_reservation_detail_screen.dart';
 import '../widgets/booking_slot_picker.dart';
 import 'package:flutter/services.dart';
+import '../../verification/view/phone_verification_screen.dart';
 
 class BookingForm extends StatefulWidget {
-  const BookingForm({super.key, required this.repository});
+  const BookingForm({
+    super.key,
+    required this.repository,
+    required this.linked,
+    this.initialVerification,
+  });
   final ReservationRepository repository;
+  final bool linked;
+  final BookingVerification? initialVerification;
   @override
   State<BookingForm> createState() => _BookingFormState();
 }
@@ -38,6 +45,13 @@ class _BookingFormState extends State<BookingForm> {
   @override
   void initState() {
     super.initState();
+    _verification = widget.initialVerification;
+    final phone = _verification?.verifiedPhoneNumber;
+    if (phone != null) {
+      _contact.text = phone.startsWith('+82')
+          ? '0${phone.substring(3)}'
+          : phone;
+    }
     _initialize();
   }
 
@@ -49,15 +63,10 @@ class _BookingFormState extends State<BookingForm> {
     });
     try {
       final departments = await widget.repository.getDepartments();
-      final linked = await widget.repository.hasPatientLink();
-      final verification = linked
-          ? null
-          : await widget.repository.getVerification();
       if (!mounted) return;
       setState(() {
         _departments = departments;
-        _linked = linked;
-        _verification = verification;
+        _linked = widget.linked;
       });
     } catch (error) {
       if (mounted) {
@@ -179,24 +188,56 @@ class _BookingFormState extends State<BookingForm> {
   }
 
   Future<void> _verify() async {
-    if (_busy) return;
+    if (_busy) {
+      return;
+    }
+
     setState(() {
       _busy = true;
       _error = null;
     });
+
     try {
-      // 네트워크 재시도 전 기존에 완료된 인증이 있는지 먼저 확인합니다.
-      final reusable = await widget.repository.getVerification();
-      final verification =
-          reusable ?? await widget.repository.completeDevelopmentVerification();
-      if (!verification.isValid(DateTime.now())) {
-        throw StateError('인증이 완료되지 않았습니다.');
+      final result = await Navigator.of(context).push<BookingVerification>(
+        MaterialPageRoute<BookingVerification>(
+          builder: (_) =>
+              PhoneVerificationScreen(repository: widget.repository),
+        ),
+      );
+
+      if (!mounted || result == null) {
+        return;
       }
-      if (mounted) setState(() => _verification = verification);
-    } catch (error) {
-      if (mounted) setState(() => _error = '테스트 인증을 완료하지 못했어요. 다시 시도해 주세요.');
+
+      if (!result.isValid(DateTime.now())) {
+        setState(() {
+          _error = '인증이 만료됐어요. 다시 인증해 주세요.';
+        });
+        return;
+      }
+
+      final phone = result.verifiedPhoneNumber;
+      final localPhone = phone != null && phone.startsWith('+82')
+          ? '0${phone.substring(3)}'
+          : phone;
+
+      setState(() {
+        _verification = result;
+
+        if (localPhone != null) {
+          _contact.text = localPhone;
+        }
+      });
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('휴대폰 인증이 완료됐어요.')));
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() {
+          _busy = false;
+        });
+      }
     }
   }
 
@@ -225,6 +266,7 @@ class _BookingFormState extends State<BookingForm> {
         _verification = null;
         _error = '유효한 본인인증이 필요해요. 인증 상태를 다시 확인해 주세요.';
       });
+      await _verify();
       return;
     }
     setState(() {
@@ -269,6 +311,7 @@ class _BookingFormState extends State<BookingForm> {
           builder: (_) => PatientReservationDetailScreen(
             id: result.id,
             repository: widget.repository,
+            openQuestionnaire: true,
           ),
         ),
       );
@@ -406,29 +449,26 @@ class _BookingFormState extends State<BookingForm> {
             ),
           ),
           const SizedBox(height: 16),
-          if (_linked == false)
+          if (_linked == false &&
+              _verification?.isValid(DateTime.now()) != true)
             Card(
               child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text('최초 예약에는 본인인증이 필요해요.'),
+                    const Text('인증이 만료됐어요. 입력한 예약 정보는 유지돼요.'),
                     const SizedBox(height: 8),
                     Text(
                       _verification?.isValid(DateTime.now()) == true
                           ? '사용 가능한 인증 기록이 있어요.'
                           : '유효한 인증 기록이 없어요.',
                     ),
-                    if (kDebugMode) ...[
-                      const SizedBox(height: 8),
-                      const Text('개발용 테스트 인증입니다. 실제 휴대폰 본인인증이 아닙니다.'),
-                      OutlinedButton(
-                        onPressed: _busy ? null : _verify,
-                        child: const Text('개발용 테스트 인증'),
-                      ),
-                    ] else if (_verification == null)
-                      const Text('본인인증 서비스를 준비 중이에요.'),
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: _busy ? null : _verify,
+                      child: const Text('휴대폰 인증'),
+                    ),
                   ],
                 ),
               ),
@@ -556,12 +596,7 @@ class _BookingFormState extends State<BookingForm> {
             ),
           FilledButton(
             onPressed:
-                _busy ||
-                    _uncertain ||
-                    _slot == null ||
-                    !_slot!.isAvailable ||
-                    (_linked == false &&
-                        _verification?.isValid(DateTime.now()) != true)
+                _busy || _uncertain || _slot == null || !_slot!.isAvailable
                 ? null
                 : _submit,
             child: Text(_busy ? '처리 중…' : '예약 신청'),

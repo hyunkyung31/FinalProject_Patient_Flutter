@@ -104,13 +104,30 @@ void main() {
     expect(repository.checks, 0);
   });
 
-  testWidgets('미연결 안내에서 연결 상태를 다시 확인해 대시보드로 이동한다', (tester) async {
+  testWidgets('미연결 환자도 홈에 진입하고 연결 상태 갱신이 반영된다', (tester) async {
     await open(tester);
+    expect(find.byType(DashboardScreen), findsOneWidget);
+    expect(
+      tester
+          .widget<DashboardScreen>(find.byType(DashboardScreen))
+          .patientLinked,
+      isFalse,
+    );
     expect(find.text('아직 연결된 병원기록이 없어요'), findsOneWidget);
     repository.linked = true;
-    await tester.tap(find.text('연결 상태 다시 확인'));
+    expect(find.text('연결 상태 다시 확인'), findsNothing);
+    // 연결 화면 복귀 시 호출되는 갱신 콜백을 확인합니다.
+    await tester.widget<DashboardScreen>(find.byType(DashboardScreen)).onRefreshLink!();
     await tester.pumpAndSettle();
     expect(find.byType(DashboardScreen), findsOneWidget);
+    expect(
+      tester
+          .widget<DashboardScreen>(find.byType(DashboardScreen))
+          .patientLinked,
+      isTrue,
+    );
+    expect(find.text('김보미님,\n안녕하세요!'), findsNothing);
+    expect(find.text('10월 20일 · 오전 10:30'), findsNothing);
     expect(repository.restores, 1);
   });
 

@@ -4,9 +4,11 @@ import '../../../core/theme/app_colors.dart';
 import 'reservation_list_screen.dart';
 import '../repository/reservation_repository.dart';
 import 'booking_form.dart';
+import '../model/booking_options.dart';
+import '../../verification/view/phone_verification_screen.dart';
 
 /// 예약 API 연결 전의 시작 화면. 실제 일정과 신청은 서버 연동 후 활성화합니다.
-class ReservationScreen extends StatelessWidget {
+class ReservationScreen extends StatefulWidget {
   const ReservationScreen({
     super.key,
     this.showListAction = true,
@@ -14,6 +16,104 @@ class ReservationScreen extends StatelessWidget {
   });
   final ReservationRepository? repository;
   final bool showListAction;
+
+  @override
+  State<ReservationScreen> createState() => _ReservationScreenState();
+}
+
+class _ReservationScreenState extends State<ReservationScreen> {
+  bool _ready = false;
+  bool _linked = false;
+  BookingVerification? _verification;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && widget.repository != null) {
+        _prepare();
+      }
+    });
+  }
+
+  Future<void> _prepare() async {
+    setState(() => _error = null);
+    try {
+      final repository = widget.repository!;
+      final linked = await repository.hasPatientLink();
+      var verification = linked ? null : await repository.getVerification();
+      if (!mounted) return;
+      if (!linked && verification?.isValid(DateTime.now()) != true) {
+        verification = await Navigator.of(context).push<BookingVerification>(
+          MaterialPageRoute<BookingVerification>(
+            builder: (_) => PhoneVerificationScreen(repository: repository),
+          ),
+        );
+        if (!mounted) return;
+        if (verification == null) {
+          if (Navigator.of(context).canPop()) {
+            Navigator.of(context).pop();
+          } else {
+            setState(() => _error = '예약 전 휴대폰 인증이 필요해요.');
+          }
+          return;
+        }
+        if (!verification.isValid(DateTime.now())) {
+          setState(() => _error = '인증이 만료됐어요. 다시 인증해 주세요.');
+          return;
+        }
+      }
+      setState(() {
+        _linked = linked;
+        _verification = verification;
+        _ready = true;
+      });
+    } catch (error) {
+      if (mounted) {
+        setState(() => _error = reservationErrorMessage(error));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.repository == null || _ready) {
+      return _ReservationContent(
+        repository: widget.repository,
+        showListAction: widget.showListAction,
+        linked: _linked,
+        verification: _verification,
+      );
+    }
+    return Scaffold(
+      appBar: AppBar(title: const Text('휴대폰 인증')),
+      body: Center(
+        child: _error == null
+            ? const CircularProgressIndicator()
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(_error!, textAlign: TextAlign.center),
+                  FilledButton(onPressed: _prepare, child: const Text('다시 시도')),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+class _ReservationContent extends StatelessWidget {
+  const _ReservationContent({
+    required this.repository,
+    required this.showListAction,
+    required this.linked,
+    this.verification,
+  });
+  final ReservationRepository? repository;
+  final bool showListAction;
+  final bool linked;
+  final BookingVerification? verification;
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -34,7 +134,13 @@ class ReservationScreen extends StatelessWidget {
       ],
     ),
     body: repository != null
-        ? SafeArea(child: BookingForm(repository: repository!))
+        ? SafeArea(
+            child: BookingForm(
+              repository: repository!,
+              linked: linked,
+              initialVerification: verification,
+            ),
+          )
         : SafeArea(
             child: Center(
               child: ConstrainedBox(

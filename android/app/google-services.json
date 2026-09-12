@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "198260726206",
+    "project_id": "cdss-staging-3a850",
+    "storage_bucket": "cdss-staging-3a850.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:198260726206:android:1d094ff7ea54bd0d3c81ef",
+        "android_client_info": {
+          "package_name": "com.example.flutter_patient"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBhsqb9nrayI70G-cjQAzKFRUVgnqAmUUg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
