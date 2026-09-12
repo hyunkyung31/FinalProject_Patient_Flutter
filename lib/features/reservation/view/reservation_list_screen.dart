@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
+import 'dart:async';
 
 import '../../../core/theme/app_colors.dart';
 import 'reservation_screen.dart';
-import '../model/reservation_preview.dart';
-import '../widgets/reservation_card.dart';
 import '../model/patient_reservation.dart';
 import '../repository/reservation_repository.dart';
 import 'patient_reservation_detail_screen.dart';
@@ -17,14 +15,44 @@ class ReservationListScreen extends StatefulWidget {
   State<ReservationListScreen> createState() => _ReservationListScreenState();
 }
 
-class _ReservationListScreenState extends State<ReservationListScreen> {
-  bool _preview = false;
+class _ReservationListScreenState extends State<ReservationListScreen>
+    with WidgetsBindingObserver {
+  Timer? _refreshTimer;
+  bool _refreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted && ModalRoute.of(context)?.isCurrent == true &&
+          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+        _reload();
+      }
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted &&
+        ModalRoute.of(context)?.isCurrent == true) {
+      _reload();
+    }
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
   late Future<List<PatientReservation>>? _reservations = widget.repository
       ?.getReservations();
 
   Future<void> _reload() async {
     final repository = widget.repository;
-    if (repository == null) return;
+    if (repository == null || !mounted || _refreshing) return;
+    _refreshing = true;
     final future = repository.getReservations();
     setState(() {
       _reservations = future;
@@ -32,7 +60,10 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
     // FutureBuilder가 오류를 표시합니다. 당겨서 새로고침에서도 오류를 중복 전파하지 않습니다.
     try {
       await future;
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      _refreshing = false;
+    }
   }
 
   Widget _liveList(bool past) {
@@ -75,7 +106,7 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
             padding: const EdgeInsets.all(24),
             children: [
               Text(
-                past ? '지난 일정과 취소된 예약 · 한국 시간 기준' : '다가오는 일정 · 한국 시간 기준',
+                past ? '지난 일정과 취소된 예약' : '다가오는 일정',
                 style: const TextStyle(color: AppColors.mutedText),
               ),
               const SizedBox(height: 16),
@@ -137,31 +168,6 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
     );
   }
 
-  late final DateTime _today = DateTime.now();
-
-  Widget _previewList(bool past) => ListView(
-    padding: const EdgeInsets.all(24),
-    children: [
-      const Text(
-        '디자인 확인용 예시이며 실제 예약이 아닙니다.',
-        style: TextStyle(color: AppColors.navy, height: 1.5),
-      ),
-      const SizedBox(height: 16),
-      ReservationCard(
-        reservation: ReservationPreview(
-          date: DateTime(
-            _today.year,
-            _today.month,
-            _today.day + (past ? -7 : 7),
-            10,
-            30,
-          ),
-          completed: past,
-        ),
-      ),
-    ],
-  );
-
   @override
   Widget build(BuildContext context) => DefaultTabController(
     length: 2,
@@ -187,24 +193,8 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
           ],
         ),
       ),
-      body: Column(
-        children: [
-          if (kDebugMode)
-            SwitchListTile(
-              title: const Text('예시 화면 보기'),
-              subtitle: const Text('개발용 · 실제 예약 내역과 무관합니다.'),
-              value: _preview,
-              onChanged: (value) => setState(() => _preview = value),
-            ),
-          Expanded(
-            child: TabBarView(
-              children: [
-                _preview ? _previewList(false) : _liveList(false),
-                _preview ? _previewList(true) : _liveList(true),
-              ],
-            ),
-          ),
-        ],
+      body: TabBarView(
+        children: [_liveList(false), _liveList(true)],
       ),
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(24, 12, 24, 16),
@@ -213,14 +203,17 @@ class _ReservationListScreenState extends State<ReservationListScreen> {
             backgroundColor: AppColors.navy,
             minimumSize: const Size.fromHeight(52),
           ),
-          onPressed: () => Navigator.of(context).push<void>(
-            MaterialPageRoute(
-              builder: (_) => ReservationScreen(
-                showListAction: false,
-                repository: widget.repository,
+          onPressed: () async {
+            await Navigator.of(context).push<void>(
+              MaterialPageRoute(
+                builder: (_) => ReservationScreen(
+                  showListAction: false,
+                  repository: widget.repository,
+                ),
               ),
-            ),
-          ),
+            );
+            if (mounted) await _reload();
+          },
           icon: const Icon(Icons.add),
           label: const Text('진료 예약'),
         ),

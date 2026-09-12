@@ -73,25 +73,36 @@ class BookingVerification {
     this.id,
     this.expiresAt,
     this.verified,
-    this.reusable,
-  );
+    this.reusable, {
+    this.verifiedPhoneNumber,
+  });
+
   final int id;
   final DateTime? expiresAt;
   final bool verified;
   final bool reusable;
-  factory BookingVerification.fromJson(Map<String, dynamic> json) =>
-      BookingVerification(
-        json['id'] as int,
-        json['expires_at'] == null
-            ? null
-            : DateTime.parse(json['expires_at'] as String).toUtc(),
-        json['verification_status'] == 'VERIFIED',
-        json['is_reusable'] == true || json['is_reusable'] == 'true',
-      );
-  bool isValid(DateTime now) =>
-      verified &&
-      reusable &&
-      (expiresAt == null || expiresAt!.isAfter(now.toUtc()));
+
+  // Firebase에서 검증한 전화번호입니다.
+  // 예: +821012345678
+  final String? verifiedPhoneNumber;
+
+  factory BookingVerification.fromJson(Map<String, dynamic> json) {
+    return BookingVerification(
+      json['id'] as int,
+      json['expires_at'] == null
+          ? null
+          : DateTime.parse(json['expires_at'] as String).toUtc(),
+      json['verification_status'] == 'VERIFIED',
+      json['is_reusable'] == true || json['is_reusable'] == 'true',
+      verifiedPhoneNumber: json['verified_phone_number'] as String?,
+    );
+  }
+
+  bool isValid(DateTime now) {
+    return verified &&
+        reusable &&
+        (expiresAt == null || expiresAt!.isAfter(now.toUtc()));
+  }
 }
 
 class DoctorCalendarDay {

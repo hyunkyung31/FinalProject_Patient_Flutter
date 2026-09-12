@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/token_storage.dart';
 import '../../home/view/dashboard_screen.dart';
-import '../../record_link/view/patient_link_required_screen.dart';
 import '../repository/auth_repository.dart';
 import 'dev_login_screen.dart';
 import '../../reservation/repository/reservation_repository.dart';
@@ -146,30 +145,12 @@ class _SessionGateState extends State<SessionGate> {
           onAuthenticated: _onAuthenticated,
         );
       case _SessionPage.unlinked:
-        return PatientLinkRequiredScreen(
-          onRefresh: _load,
+      case _SessionPage.linked:
+        return DashboardScreen(
+          patientLinked: _page == _SessionPage.linked,
+          onRefreshLink: _load,
           reservationRepository: _reservationRepository,
           onLogout: _confirmLogout,
-        );
-      case _SessionPage.linked:
-        return Column(
-          children: [
-            const SafeArea(
-              bottom: false,
-              child: Material(
-                child: Padding(
-                  padding: EdgeInsets.all(8),
-                  child: Text('병원기록 연결 완료 · 아래 대시보드는 예시 데이터입니다.'),
-                ),
-              ),
-            ),
-            Expanded(
-              child: DashboardScreen(
-                reservationRepository: _reservationRepository,
-                onLogout: _confirmLogout,
-              ),
-            ),
-          ],
         );
       case _SessionPage.error:
         return Scaffold(

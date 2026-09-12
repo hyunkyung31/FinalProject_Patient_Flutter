@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../../../core/network/api_client.dart';
 import '../model/patient_reservation.dart';
+import '../model/reservation_change_request.dart';
 import '../model/booking_options.dart';
 import 'package:flutter/foundation.dart';
 
@@ -8,6 +9,29 @@ class ReservationRepository {
   ReservationRepository(this.client);
   final ApiClient client;
   static const path = '/api/patient/reservations/';
+
+  Future<ReservationChangeRequest> requestReservationChange({
+    required int reservationId,
+    required DateTime requestedAt,
+    String reason = '',
+  }) async {
+    if (!requestedAt.isAfter(DateTime.now().toUtc())) {
+      throw ArgumentError('미래의 예약 시간을 선택해 주세요.');
+    }
+    final response = await client.dio.post<Map<String, dynamic>>(
+      '$path$reservationId/change-requests/',
+      data: {
+        'requested_reserved_at': requestedAt.toUtc().toIso8601String(),
+        'reason': reason.trim(),
+      },
+    );
+    if (response.data == null)
+      throw const FormatException('변경 요청 응답이 비어 있습니다.');
+    final result = ReservationChangeRequest.fromJson(response.data!);
+    if (result.reservationId != reservationId)
+      throw const FormatException('예약 번호가 일치하지 않습니다.');
+    return result;
+  }
 
   Future<List<Map<String, dynamic>>> _list(
     String url, {
@@ -120,6 +144,35 @@ class ReservationRepository {
     return records.isEmpty ? null : records.first;
   }
 
+  Future<BookingVerification> verifyFirebasePhone(String idToken) async {
+    if (idToken.trim().isEmpty) {
+      throw ArgumentError('Firebase ID 토큰이 비어 있습니다.');
+    }
+
+    final response = await client.dio.post<Map<String, dynamic>>(
+      '/api/verifications/firebase/',
+      data: {'id_token': idToken},
+    );
+
+    final data = response.data;
+
+    if (data == null) {
+      throw const FormatException('전화번호 인증 응답이 비어 있습니다.');
+    }
+
+    final verification = BookingVerification.fromJson(data);
+
+    if (!verification.isValid(DateTime.now())) {
+      throw StateError('사용 가능한 전화번호 인증 기록이 아닙니다.');
+    }
+
+    if (verification.verifiedPhoneNumber?.trim().isNotEmpty != true) {
+      throw const FormatException('인증된 전화번호가 응답에 없습니다.');
+    }
+
+    return verification;
+  }
+
   Future<BookingVerification> completeDevelopmentVerification({
     int? pendingId,
   }) async {
@@ -163,9 +216,7 @@ class ReservationRepository {
   }
 
   Future<PatientReservation> getReservation(int id) async {
-    final response = await client.dio.get<Map<String, dynamic>>(
-      '$path$id/',
-    );
+    final response = await client.dio.get<Map<String, dynamic>>('$path$id/');
     final reservation = _parse(response.data);
 
     final names = await Future.wait<String?>([
@@ -221,7 +272,7 @@ class ReservationRepository {
     } catch (_) {
       return null;
     }
-  }  
+  }
 
   Future<List<PatientReservation>> getReservations() async {
     final response = await client.dio.get<Object?>(path);

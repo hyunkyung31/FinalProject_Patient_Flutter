@@ -2,14 +2,19 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../model/patient_reservation.dart';
 import '../repository/reservation_repository.dart';
+import '../model/reservation_change_request.dart';
+import 'reservation_change_screen.dart';
+import 'questionnaire_screen.dart';
 
 class PatientReservationDetailScreen extends StatefulWidget {
   const PatientReservationDetailScreen({
     super.key,
     required this.id,
     required this.repository,
+    this.openQuestionnaire = false,
   });
   final int id;
+  final bool openQuestionnaire;
   final ReservationRepository repository;
   @override
   State<PatientReservationDetailScreen> createState() =>
@@ -24,6 +29,51 @@ class _PatientReservationDetailScreenState
   bool _busy = false;
   bool _sending = false;
   String? _error;
+  ReservationChangeRequest? _changeRequest;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.openQuestionnaire) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _questionnaire();
+      });
+    }
+  }
+
+  void _questionnaire() {
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => QuestionnaireScreen(
+          reservationId: widget.id,
+          repository: widget.repository,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _change(PatientReservation item) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      final result = await Navigator.of(context).push<ReservationChangeRequest>(
+        MaterialPageRoute(
+          builder: (_) => ReservationChangeScreen(
+            repository: widget.repository,
+            reservation: item,
+          ),
+        ),
+      );
+      if (!mounted || result == null) return;
+      setState(() {
+        _changeRequest = result;
+        // 변경 신청은 예약 확정 시각을 바꾸지 않습니다.
+        _detail = widget.repository.getReservation(widget.id);
+      });
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   Future<void> _cancel(PatientReservation reservation) async {
     if (_busy) return;
@@ -153,13 +203,9 @@ class _PatientReservationDetailScreenState
                       const SizedBox(height: 16),
                       Text('신청자  ${item.applicantName}'),
                       const SizedBox(height: 16),
-                      Text(
-                        '진료과  ${item.departmentName ?? '확인하지 못했어요'}',
-                      ),
+                      Text('진료과  ${item.departmentName ?? '확인하지 못했어요'}'),
                       const SizedBox(height: 16),
-                      Text(
-                        '의료진  ${item.doctorName ?? '확인하지 못했어요'}',
-                      ),
+                      Text('의료진  ${item.doctorName ?? '확인하지 못했어요'}'),
                       if (item.cancelReason?.isNotEmpty == true) ...[
                         const SizedBox(height: 16),
                         Text('취소 사유  ${item.cancelReason}'),
@@ -170,8 +216,27 @@ class _PatientReservationDetailScreenState
               ),
               const SizedBox(height: 24),
               if (item.canCancel(DateTime.now())) ...[
-                const OutlinedButton(onPressed: null, child: Text('예약 변경')),
-                const Text('예약 변경 기능을 준비 중이에요.', textAlign: TextAlign.center),
+                OutlinedButton.icon(
+                  onPressed: _busy ? null : _questionnaire,
+                  icon: const Icon(Icons.assignment_outlined),
+                  label: const Text('문진표 작성·확인'),
+                ),
+                if (_changeRequest != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Text(
+                      '변경 요청 접수: ${_changeRequest!.dateLabel}\n'
+                      '${_changeRequest!.status == 'PENDING' ? '접수 당시 상태: 변경 승인 대기' : '접수 당시 상태: ${_changeRequest!.status}'}\n'
+                      '최신 승인·반려 상태 조회는 준비 중이에요. 현재 예약 시간은 위에서 확인해 주세요.',
+                    ),
+                  ),
+                OutlinedButton(
+                  onPressed:
+                      _busy || item.doctorId == null || _changeRequest != null
+                      ? null
+                      : () => _change(item),
+                  child: const Text('예약 변경'),
+                ),
                 const SizedBox(height: 16),
                 OutlinedButton(
                   onPressed: _busy ? null : () => _cancel(item),
