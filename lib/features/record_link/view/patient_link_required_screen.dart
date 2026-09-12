@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../reservation/view/reservation_screen.dart';
 import '../../reservation/repository/reservation_repository.dart';
+import '../../patient_services/view/patient_services_screen.dart';
 
 class PatientLinkRequiredScreen extends StatelessWidget {
   const PatientLinkRequiredScreen({
@@ -91,6 +92,31 @@ class PatientLinkRequiredScreen extends StatelessWidget {
                   icon: const Icon(Icons.calendar_month_outlined),
                   label: const Text('진료 예약'),
                 ),
+                if (reservationRepository != null) ...[
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push<void>(
+                      MaterialPageRoute(
+                        builder: (_) => PatientServicesScreen(
+                          repository: reservationRepository!,
+                          section: 'link',
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.folder_shared_outlined),
+                    label: const Text('병원기록 연결 요청'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).push<void>(
+                      MaterialPageRoute(
+                        builder: (_) => PatientServicesScreen(
+                          repository: reservationRepository!,
+                        ),
+                      ),
+                    ),
+                    child: const Text('내 정보 · 동의 · 설정'),
+                  ),
+                ],
                 if (onRefresh != null) ...[
                   const SizedBox(height: 24),
                   OutlinedButton(
