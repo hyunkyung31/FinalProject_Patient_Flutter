@@ -25,11 +25,13 @@ class ReservationRepository {
         'reason': reason.trim(),
       },
     );
-    if (response.data == null)
+    if (response.data == null) {
       throw const FormatException('변경 요청 응답이 비어 있습니다.');
+    }
     final result = ReservationChangeRequest.fromJson(response.data!);
-    if (result.reservationId != reservationId)
+    if (result.reservationId != reservationId) {
       throw const FormatException('예약 번호가 일치하지 않습니다.');
+    }
     return result;
   }
 
