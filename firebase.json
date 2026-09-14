@@ -1,1 +1,21 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"cdss-staging-3a850","appId":"1:198260726206:android:1d094ff7ea54bd0d3c81ef","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"cdss-staging-3a850","configurations":{"android":"1:198260726206:android:1d094ff7ea54bd0d3c81ef"}}}}}}
+{
+    "flutter":  {
+                    "platforms":  {
+                                      "android":  {
+                                                      "default":  {
+                                                                      "projectId":  "cdss-staging",
+                                                                      "appId":  "1:491343141234:android:38747ddc7a9d56ddf525eb",
+                                                                      "fileOutput":  "android/app/google-services.json"
+                                                                  }
+                                                  },
+                                      "dart":  {
+                                                   "lib/firebase_options.dart":  {
+                                                                                     "projectId":  "cdss-staging",
+                                                                                     "configurations":  {
+                                                                                                            "android":  "1:491343141234:android:38747ddc7a9d56ddf525eb"
+                                                                                                        }
+                                                                                 }
+                                               }
+                                  }
+                }
+}
