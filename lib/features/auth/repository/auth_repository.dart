@@ -77,6 +77,30 @@ class AuthRepository {
     return result;
   }
 
+  Future<AuthLoginResult> loginWithGoogle(String idToken) async {
+    if (idToken.trim().isEmpty) {
+      throw ArgumentError('구글 ID 토큰이 없습니다.');
+    }
+    _apiClient.clearAccessToken();
+    await tokenStorage.clearTokens();
+    final deviceId = await tokenStorage.getDeviceId();
+    final result = await _authService.loginWithGoogle(
+      idToken: idToken,
+      deviceId: deviceId,
+    );
+    try {
+      await tokenStorage.saveTokens(
+        access: result.tokens.access,
+        refresh: result.tokens.refresh,
+      );
+    } catch (_) {
+      await tokenStorage.clearTokens();
+      rethrow;
+    }
+    _apiClient.setAccessToken(result.tokens.access);
+    return result;
+  }
+
   Future<void> loginForDevelopment({required bool linkedPatient}) async {
     // 이전 테스트 계정의 인증 정보 제거
     _apiClient.clearAccessToken();

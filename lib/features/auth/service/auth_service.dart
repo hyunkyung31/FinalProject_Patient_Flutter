@@ -52,6 +52,33 @@ class AuthService {
     return AuthLoginResult.fromJson(data);
   }
 
+  Future<AuthLoginResult> loginWithGoogle({
+    required String idToken,
+    required String deviceId,
+  }) async {
+    if (idToken.trim().isEmpty) {
+      throw ArgumentError('구글 ID 토큰이 없습니다.');
+    }
+
+    final response = await _apiClient.dio.post<Map<String, dynamic>>(
+      ApiEndpoints.socialLogin,
+      data: {
+        'identity_type': 'GOOGLE',
+        'id_token': idToken,
+        'device_id': deviceId,
+        'device_name': 'Android Device',
+        'platform': 'ANDROID',
+      },
+    );
+
+    final data = response.data;
+    if (data == null) {
+      throw const FormatException('로그인 응답이 비어 있습니다.');
+    }
+
+    return AuthLoginResult.fromJson(data);
+  }
+
   Future<AuthTokens> loginForDevelopment({required bool linkedPatient}) async {
     if (!kDebugMode) {
       throw StateError('개발용 로그인은 디버그 모드에서만 사용할 수 있습니다.');
