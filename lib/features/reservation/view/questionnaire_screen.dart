@@ -21,7 +21,44 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
       '/api/patient/reservations/${widget.reservationId}/questionnaires/',
     );
     if (response.data is! List) throw const FormatException('문진표 응답 오류');
-    return response.data as List;
+    final entries = (response.data as List)
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+    if (entries.any(
+      (e) =>
+          e['response_status'] == 'SUBMITTED' ||
+          e['response_status'] == 'REVIEWED',
+    )) {
+      final saved = await widget.repository.client.dio.get<Map<String, dynamic>>(
+        '/api/patient/reservations/${widget.reservationId}/questionnaire-responses/',
+      );
+      if (saved.data?['reservation_id'] != widget.reservationId ||
+          saved.data?['results'] is! List) {
+        throw const FormatException('저장된 문진 응답 오류');
+      }
+      for (final entry in entries) {
+        if (entry['response_status'] != 'SUBMITTED' &&
+            entry['response_status'] != 'REVIEWED') {
+          continue;
+        }
+        final matches = (saved.data!['results'] as List)
+            .where(
+              (r) =>
+                  r is Map &&
+                  r['template'] == entry['template']['id'] &&
+                  r['id'] == entry['response_id'] &&
+                  r['reservation'] == widget.reservationId,
+            )
+            .toList();
+        if (matches.length != 1 ||
+            !['SUBMITTED', 'REVIEWED'].contains(matches.single['status'])) {
+          throw const FormatException('저장된 문진 상태 오류');
+        }
+        entry['answers'] = matches.single['answers'];
+        entry['response_status'] = matches.single['status'];
+      }
+    }
+    return entries;
   }
 
   @override
@@ -87,6 +124,53 @@ class _QuestionnaireFormState extends State<_QuestionnaireForm> {
   final controllers = <int, TextEditingController>{};
   int stepIndex = 0;
   bool reviewing = false;
+  bool restored = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!existing) return;
+    try {
+      final rows = widget.entry['answers'];
+      if (rows is! List) return;
+      final loaded = <int, Object>{};
+      final seen = <int>{};
+      for (final row in rows) {
+        if (row is! Map || row['question'] is! int) {
+          throw const FormatException();
+        }
+        final id = row['question'] as int;
+        if (!seen.add(id)) throw const FormatException();
+        final q = questions.singleWhere((q) => q['id'] == id);
+        final field = switch (q['question_type']) {
+          'TEXT' || 'SINGLE' => 'answer_text',
+          'NUMBER' => 'answer_numeric',
+          'BOOLEAN' => 'answer_boolean',
+          'MULTI' => 'answer_json',
+          _ => throw const FormatException(),
+        };
+        Object? value = row[field];
+        if (value == null) continue;
+        if (field == 'answer_numeric') {
+          value = num.tryParse(value.toString());
+          if (value is! num || !value.isFinite) throw const FormatException();
+        } else if ((field == 'answer_text' && value is! String) ||
+            (field == 'answer_boolean' && value is! bool) ||
+            (field == 'answer_json' &&
+                (value is! List || value.any((v) => v is! String)))) {
+          throw const FormatException();
+        }
+        if (value == null) throw const FormatException();
+        loaded[id] = value;
+      }
+      answers.addAll(loaded);
+      restored = true;
+    } catch (_) {
+      // Never enable replacement saves when an existing answer cannot be restored.
+      restored = false;
+    }
+  }
+
   List<int> get steps =>
       questions.map((q) => (q['step'] as int?) ?? 1).toSet().toList()..sort();
   bool visible(Map q) {
@@ -175,7 +259,7 @@ class _QuestionnaireFormState extends State<_QuestionnaireForm> {
     ].contains(q['question_type']),
   );
   bool get locked =>
-      existing ||
+      (existing && !restored) ||
       uncertain ||
       !supported ||
       status == 'SUBMITTED' ||
@@ -436,88 +520,89 @@ class _QuestionnaireFormState extends State<_QuestionnaireForm> {
               'REVIEWED' => '의료진 확인 완료',
               _ => '작성 전',
             }),
-            if (existing)
+            if (existing && !restored)
               const Text(
-                '기존 답변을 보호하기 위해 수정은 잠겨 있어요. 저장 상태는 확인했지만 서버에서 답변 내용을 아직 제공하지 않아 표시할 수 없어요.',
+                '기존 답변을 보호하기 위해 수정은 잠겨 있어요. 저장된 답변을 복원하지 못했어요. 뒤로 돌아간 후 다시 열어 주세요.',
               )
             else if (!supported)
               const Text('아직 지원하지 않는 질문이 있어요. 병원에 문의해 주세요.')
             else ...[
               if (status == 'SUBMITTED' || status == 'REVIEWED') ...[
                 const Text('제출한 내용이에요. 제출 후에는 수정할 수 없어요.'),
-                for (final q in questions.where(visible)) ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(q['question_text'] as String),
-                  subtitle: Text(answerLabel(q)),
-                ),
-              ] else ...[
-              if (questions.any(
-                (q) =>
-                    q['condition_json'] is Map &&
-                    q['condition_json']['source'] == 'previous_answer',
-              ))
-                const Text(
-                  '이전 문진 답변을 불러올 수 없어 관련 질문도 함께 표시해요. 현재 상태에 맞게 답해 주세요.',
-                ),
-              if (steps.isNotEmpty)
-                Text(
-                  reviewing
-                      ? '작성 내용 확인'
-                      : '${stepIndex + 1} / ${steps.length}단계',
-                ),
-              if (reviewing)
                 for (final q in questions.where(visible))
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(q['question_text'] as String),
                     subtitle: Text(answerLabel(q)),
-                  )
-              else
-                for (final q in questions.where(
-                  (q) =>
-                      visible(q) &&
-                      ((q['step'] as int?) ?? 1) == steps[stepIndex],
-                ))
-                  question(q),
-              if (message != null) Text(message!),
-              if (processing) const LinearProgressIndicator(),
-              Wrap(
-                spacing: 8,
-                children: [
-                  if (stepIndex > 0 || reviewing)
-                    TextButton(
-                      onPressed: busy || locked
-                          ? null
-                          : () => setState(() {
-                              if (reviewing) {
-                                reviewing = false;
-                              } else {
-                                stepIndex--;
-                              }
-                              message = null;
-                            }),
-                      child: const Text('이전'),
-                    ),
-                  OutlinedButton(
-                    onPressed: busy || locked ? null : () => save(false),
-                    child: const Text('임시 저장'),
                   ),
-                  if (steps.length > 1 && !reviewing)
-                    FilledButton(
-                      onPressed: busy || locked
-                          ? null
-                          : () => save(false, advance: true),
-                      child: Text(
-                        stepIndex == steps.length - 1 ? '작성 내용 확인' : '다음',
+              ] else ...[
+                if (questions.any(
+                  (q) =>
+                      q['condition_json'] is Map &&
+                      q['condition_json']['source'] == 'previous_answer',
+                ))
+                  const Text(
+                    '이전 문진 답변을 불러올 수 없어 관련 질문도 함께 표시해요. 현재 상태에 맞게 답해 주세요.',
+                  ),
+                if (steps.isNotEmpty)
+                  Text(
+                    reviewing
+                        ? '작성 내용 확인'
+                        : '${stepIndex + 1} / ${steps.length}단계',
+                  ),
+                if (reviewing)
+                  for (final q in questions.where(visible))
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(q['question_text'] as String),
+                      subtitle: Text(answerLabel(q)),
+                    )
+                else
+                  for (final q in questions.where(
+                    (q) =>
+                        visible(q) &&
+                        ((q['step'] as int?) ?? 1) == steps[stepIndex],
+                  ))
+                    question(q),
+                if (message != null) Text(message!),
+                if (processing) const LinearProgressIndicator(),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    if (stepIndex > 0 || reviewing)
+                      TextButton(
+                        onPressed: busy || locked
+                            ? null
+                            : () => setState(() {
+                                if (reviewing) {
+                                  reviewing = false;
+                                } else {
+                                  stepIndex--;
+                                }
+                                message = null;
+                              }),
+                        child: const Text('이전'),
                       ),
+                    OutlinedButton(
+                      onPressed: busy || locked ? null : () => save(false),
+                      child: const Text('임시 저장'),
                     ),
-                  if (reviewing || steps.length <= 1)
-                    FilledButton(
-                      onPressed: busy || locked ? null : () => save(true),
-                      child: const Text('최종 제출'),
-                    ),
-                ],
-              ),
+                    if (steps.length > 1 && !reviewing)
+                      FilledButton(
+                        onPressed: busy || locked
+                            ? null
+                            : () => save(false, advance: true),
+                        child: Text(
+                          stepIndex == steps.length - 1 ? '작성 내용 확인' : '다음',
+                        ),
+                      ),
+                    if (reviewing || steps.length <= 1)
+                      FilledButton(
+                        onPressed: busy || locked ? null : () => save(true),
+                        child: const Text('최종 제출'),
+                      ),
+                  ],
+                ),
               ],
             ],
           ],
