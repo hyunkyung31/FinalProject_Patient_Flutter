@@ -35,8 +35,9 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
             child: Text('문진표를 불러오지 못했어요.\n뒤로 돌아간 후 다시 열어 주세요.'),
           );
         }
-        if (!snapshot.hasData)
+        if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
+        }
         if (snapshot.data!.isEmpty) {
           return const Center(
             child: Padding(
@@ -90,12 +91,14 @@ class _QuestionnaireFormState extends State<_QuestionnaireForm> {
       questions.map((q) => (q['step'] as int?) ?? 1).toSet().toList()..sort();
   bool visible(Map q) {
     final condition = q['condition_json'];
-    if (condition is! Map || condition['source'] == 'previous_answer')
+    if (condition is! Map || condition['source'] == 'previous_answer') {
       return true;
+    }
     Object? actual;
     for (final source in questions) {
-      if (source['question_code'] == condition['question_code'])
+      if (source['question_code'] == condition['question_code']) {
         actual = answers[source['id']];
+      }
     }
     return switch (condition['operator']) {
       'equals' => actual == condition['value'],
@@ -245,8 +248,9 @@ class _QuestionnaireFormState extends State<_QuestionnaireForm> {
               ],
             },
           );
-      if (saved.data?['status'] != 'DRAFT')
+      if (saved.data?['status'] != 'DRAFT') {
         throw const FormatException('저장 응답 오류');
+      }
       if (!mounted) return;
       setState(() => status = 'DRAFT');
       if (submit) {
@@ -255,8 +259,9 @@ class _QuestionnaireFormState extends State<_QuestionnaireForm> {
               '${path}submit/',
               data: {'template_id': template['id']},
             );
-        if (result.data?['status'] != 'SUBMITTED')
+        if (result.data?['status'] != 'SUBMITTED') {
           throw const FormatException('제출 응답 오류');
+        }
         if (!mounted) return;
         setState(() {
           status = 'SUBMITTED';
@@ -289,11 +294,12 @@ class _QuestionnaireFormState extends State<_QuestionnaireForm> {
             : '저장하지 못했어요. 다시 시도해 주세요.';
       });
     } finally {
-      if (mounted)
+      if (mounted) {
         setState(() {
           busy = false;
           processing = false;
         });
+      }
     }
   }
 

@@ -7,6 +7,8 @@ import '../../reservation/view/reservation_screen.dart';
 import '../../reservation/repository/reservation_repository.dart';
 import '../../patient_services/view/patient_services_screen.dart';
 import '../../notification/view/notification_screen.dart';
+import '../../pharmacy/pharmacy_screen.dart';
+import '../../pharmacy/pharmacy_repository.dart';
 import '../../medical_history/repository/medical_history_repository.dart';
 import '../../medical_history/view/medical_history_screen.dart';
 import '../../prescription/repository/patient_prescription_repository.dart';
@@ -48,6 +50,16 @@ class DashboardScreen extends StatelessWidget {
   }
 
   void open(BuildContext context, String title) {
+    if (title == '주변 약국' && reservationRepository != null) {
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => PharmacyScreen(
+            repository: PharmacyRepository(reservationRepository!.client),
+          ),
+        ),
+      );
+      return;
+    }
     if (reservationRepository != null && ['알림', '알림 목록'].contains(title)) {
       Navigator.of(context).push<void>(
         MaterialPageRoute(
@@ -57,7 +69,7 @@ class DashboardScreen extends StatelessWidget {
       );
       return;
     }
-    // 연결된 환자의 실제 기능 화면으로 이동
+    // 연결된 환자의 기능 화면으로 이동
     final repository = reservationRepository;
     if (patientLinked == true && repository != null) {
       final Widget? screen = switch (title) {
