@@ -7,6 +7,9 @@ import '../../home/view/dashboard_screen.dart';
 import '../repository/auth_repository.dart';
 import 'dev_login_screen.dart';
 import '../../reservation/repository/reservation_repository.dart';
+import '../../chatbot/repository/chatbot_repository.dart';
+import '../../chatbot/view/chatbot_conversation_list_screen.dart';
+import '../../chatbot/widgets/chatbot_overlay_host.dart';
 
 enum _SessionPage { loading, login, linked, unlinked, error }
 
@@ -21,6 +24,7 @@ class SessionGate extends StatefulWidget {
 class _SessionGateState extends State<SessionGate> {
   final _client = ApiClient();
   late final _reservationRepository = ReservationRepository(_client);
+  late final _chatbotRepository = ChatbotRepository(_client);
   late final _repository =
       widget.repository ??
       AuthRepository(apiClient: _client, tokenStorage: TokenStorage());
@@ -29,6 +33,19 @@ class _SessionGateState extends State<SessionGate> {
   String _error = '';
   bool _logoutBusy = false;
   bool _retryLogout = false;
+
+  Future<void> _openChatbot() async {
+    if (!mounted || _page != _SessionPage.linked) {
+      return;
+    }
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            ChatbotConversationListScreen(repository: _chatbotRepository),
+      ),
+    );
+  }
 
   Future<void> _confirmLogout() async {
     if (_logoutBusy) return;
@@ -81,6 +98,7 @@ class _SessionGateState extends State<SessionGate> {
   }
 
   Future<void> _load() async {
+    ChatbotOverlayController.instance.deactivate();
     setState(() => _page = _SessionPage.loading);
     try {
       if (!_authenticated) {
@@ -96,6 +114,10 @@ class _SessionGateState extends State<SessionGate> {
       setState(
         () => _page = linked ? _SessionPage.linked : _SessionPage.unlinked,
       );
+
+      if (linked) {
+        ChatbotOverlayController.instance.activate(_openChatbot);
+      }
     } on DioException catch (error) {
       if (!mounted) return;
       if (error.response?.statusCode == 401) {
@@ -117,6 +139,7 @@ class _SessionGateState extends State<SessionGate> {
 
   void _showError(String message) {
     if (!mounted) return;
+    ChatbotOverlayController.instance.deactivate();
     setState(() {
       _error = message;
       _page = _SessionPage.error;
@@ -130,6 +153,7 @@ class _SessionGateState extends State<SessionGate> {
 
   @override
   void dispose() {
+    ChatbotOverlayController.instance.deactivate();
     _client.dispose();
     super.dispose();
   }

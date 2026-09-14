@@ -3,6 +3,7 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/app_preferences.dart';
 import 'features/splash/view/startup_screen.dart';
 import 'features/onboarding/repository/onboarding_repository.dart';
+import 'features/chatbot/widgets/chatbot_overlay_host.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key, this.onboardingRepository});
@@ -17,20 +18,21 @@ class MyApp extends StatelessWidget {
       return MaterialApp(
         title: 'BOMI',
         debugShowCheckedModeBanner: false,
-        theme: (settings.dark
-                ? ThemeData(useMaterial3: true, brightness: Brightness.dark)
-                : AppTheme.light)
-            .copyWith(
-          brightness: brightness,
-          scaffoldBackgroundColor: settings.dark
-              ? const Color(0xFF111827)
-              : const Color(0xFFF8FAFC),
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF1E3A8A),
-            brightness: brightness,
-            contrastLevel: settings.highContrast ? 1 : 0,
-          ),
-        ),
+        theme:
+            (settings.dark
+                    ? ThemeData(useMaterial3: true, brightness: Brightness.dark)
+                    : AppTheme.light)
+                .copyWith(
+                  brightness: brightness,
+                  scaffoldBackgroundColor: settings.dark
+                      ? const Color(0xFF111827)
+                      : const Color(0xFFF8FAFC),
+                  colorScheme: ColorScheme.fromSeed(
+                    seedColor: const Color(0xFF1E3A8A),
+                    brightness: brightness,
+                    contrastLevel: settings.highContrast ? 1 : 0,
+                  ),
+                ),
         builder: (context, child) {
           final media = MediaQuery.of(context);
           return MediaQuery(
@@ -41,7 +43,7 @@ class MyApp extends StatelessWidget {
               disableAnimations:
                   media.disableAnimations || settings.reduceMotion,
             ),
-            child: child!,
+            child: ChatbotOverlayHost(child: child!),
           );
         },
         home: StartupScreen(repository: onboardingRepository),
