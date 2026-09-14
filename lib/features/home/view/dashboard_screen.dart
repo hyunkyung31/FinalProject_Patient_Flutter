@@ -7,6 +7,8 @@ import '../../reservation/view/reservation_screen.dart';
 import '../../reservation/repository/reservation_repository.dart';
 import '../../patient_services/view/patient_services_screen.dart';
 import '../../notification/view/notification_screen.dart';
+import '../../pharmacy/pharmacy_screen.dart';
+import '../../pharmacy/pharmacy_repository.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({
@@ -43,6 +45,16 @@ class DashboardScreen extends StatelessWidget {
   }
 
   void open(BuildContext context, String title) {
+    if (title == '주변 약국' && reservationRepository != null) {
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => PharmacyScreen(
+            repository: PharmacyRepository(reservationRepository!.client),
+          ),
+        ),
+      );
+      return;
+    }
     if (reservationRepository != null && ['알림', '알림 목록'].contains(title)) {
       Navigator.of(context).push<void>(
         MaterialPageRoute(
