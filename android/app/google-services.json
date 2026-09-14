@@ -1,26 +1,44 @@
 {
   "project_info": {
-    "project_number": "198260726206",
-    "project_id": "cdss-staging-3a850",
-    "storage_bucket": "cdss-staging-3a850.firebasestorage.app"
+    "project_number": "491343141234",
+    "project_id": "cdss-staging",
+    "storage_bucket": "cdss-staging.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:198260726206:android:1d094ff7ea54bd0d3c81ef",
+        "mobilesdk_app_id": "1:491343141234:android:38747ddc7a9d56ddf525eb",
         "android_client_info": {
           "package_name": "com.example.flutter_patient"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "491343141234-ugphlktvkir8r39dqj1mbaa4irb9cc04.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.flutter_patient",
+            "certificate_hash": "33ca949995d8e0e48e400041911f30b28968b041"
+          }
+        },
+        {
+          "client_id": "491343141234-tp3gm9gjl5embki9g67a5hilekp5n1iq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "AIzaSyBhsqb9nrayI70G-cjQAzKFRUVgnqAmUUg"
+          "current_key": "AIzaSyBXsyQnkM7D1WeKMd-Cl-8Sg8MKSGjtxBc"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "491343141234-tp3gm9gjl5embki9g67a5hilekp5n1iq.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

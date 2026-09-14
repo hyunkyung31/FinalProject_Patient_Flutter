@@ -2,6 +2,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:kakao_flutter_sdk_user/kakao_flutter_sdk_user.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import '../service/google_login_service.dart';
+import 'session_gate.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/token_storage.dart';
@@ -10,9 +13,15 @@ import '../repository/auth_repository.dart';
 import '../../record_link/view/patient_link_required_screen.dart';
 
 class DevLoginScreen extends StatefulWidget {
-  const DevLoginScreen({super.key, this.repository, this.onAuthenticated});
+  const DevLoginScreen({
+    super.key,
+    this.repository,
+    this.onAuthenticated,
+    this.googleAuthenticate,
+  });
   final AuthRepository? repository;
   final Future<void> Function()? onAuthenticated;
+  final Future<String> Function()? googleAuthenticate;
 
   @override
   State<DevLoginScreen> createState() => _DevLoginScreenState();
@@ -207,6 +216,59 @@ class _DevLoginScreenState extends State<DevLoginScreen> {
     }
   }
 
+  Future<void> _loginWithGoogle() async {
+    if (_isLoading) return;
+    setState(() {
+      _isLoading = true;
+      _isSuccess = false;
+      _message = null;
+    });
+    try {
+      final idToken =
+          await (widget.googleAuthenticate ??
+              GoogleLoginService().authenticate)();
+      if (!mounted) return;
+      await _authRepository.loginWithGoogle(idToken);
+      if (!mounted) return;
+      if (widget.onAuthenticated != null) {
+        await widget.onAuthenticated!();
+      } else {
+        Navigator.of(context).pushReplacement<void, void>(
+          MaterialPageRoute(builder: (_) => const SessionGate()),
+        );
+      }
+    } on GoogleSignInException catch (e) {
+      if (!mounted) return;
+      setState(
+        () => _message = switch (e.code) {
+          GoogleSignInExceptionCode.canceled => '구글 로그인을 취소했어요.',
+          GoogleSignInExceptionCode.clientConfigurationError =>
+            '구글 로그인 설정을 확인해 주세요. OAuth 클라이언트와 앱 서명 설정이 필요해요.',
+          _ => kDebugMode
+              ? '구글 인증을 진행하지 못했어요.\n${googleLoginDiagnostic(e)}'
+              : '구글 인증을 진행하지 못했어요. 다시 시도해 주세요.',
+        },
+      );
+    } on DioException catch (e) {
+      if (!mounted) return;
+      final data = e.response?.data;
+      final details = kDebugMode && data is Map
+          ? [for (final field in ['code', 'detail'])
+              if (data[field] is String) '$field: ${redactGoogleDiagnostic(data[field] as String)}'].join('\n')
+          : '';
+      setState(
+        () => _message = e.response == null
+            ? '로그인 서버에 연결하지 못했어요. 다시 시도해 주세요.'
+            : '구글 서버 로그인에 실패했어요. (응답 코드: ${e.response?.statusCode})${details.isEmpty ? '' : '\n$details'}',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _message = '구글 로그인 처리 또는 토큰 저장에 실패했어요. 다시 시도해 주세요.');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   void dispose() {
     _apiClient.dispose();
@@ -215,10 +277,6 @@ class _DevLoginScreenState extends State<DevLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (!kDebugMode) {
-      return const Scaffold(body: Center(child: Text('로그인 기능을 준비 중이에요.')));
-    }
-
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -239,13 +297,13 @@ class _DevLoginScreenState extends State<DevLoginScreen> {
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    '개발용 로그인',
+                    kDebugMode ? '개발용 로그인' : '로그인 / 회원가입',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'API 연결을 확인할 테스트 계정을 선택해 주세요.',
+                    '사용할 로그인 방법을 선택해 주세요.',
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 32),
@@ -259,19 +317,29 @@ class _DevLoginScreenState extends State<DevLoginScreen> {
                     child: const Text('카카오 로그인/회원가입'),
                   ),
                   const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: _isLoading
-                        ? null
-                        : () => _login(linkedPatient: true),
-                    child: const Text('연결된 환자 계정으로 로그인'),
-                  ),
-                  const SizedBox(height: 12),
                   OutlinedButton(
-                    onPressed: _isLoading
-                        ? null
-                        : () => _login(linkedPatient: false),
-                    child: const Text('미연결 환자 계정으로 로그인'),
+                    onPressed: _isLoading ? null : _loginWithGoogle,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48),
+                    ),
+                    child: const Text('구글 로그인/회원가입'),
                   ),
+                  if (kDebugMode) ...[
+                    const SizedBox(height: 24),
+                    FilledButton(
+                      onPressed: _isLoading
+                          ? null
+                          : () => _login(linkedPatient: true),
+                      child: const Text('연결된 환자 계정으로 로그인'),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: _isLoading
+                          ? null
+                          : () => _login(linkedPatient: false),
+                      child: const Text('미연결 환자 계정으로 로그인'),
+                    ),
+                  ],
                   if (_isLoading) ...[
                     const SizedBox(height: 24),
                     const Center(child: CircularProgressIndicator()),
