@@ -7,6 +7,11 @@ import '../../reservation/view/reservation_screen.dart';
 import '../../reservation/repository/reservation_repository.dart';
 import '../../patient_services/view/patient_services_screen.dart';
 import '../../notification/view/notification_screen.dart';
+import '../../medical_history/repository/medical_history_repository.dart';
+import '../../medical_history/view/medical_history_screen.dart';
+import '../../prescription/repository/patient_prescription_repository.dart';
+import '../../prescription/view/patient_prescription_list_screen.dart';
+import 'patient_result_hub_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({
@@ -51,6 +56,27 @@ class DashboardScreen extends StatelessWidget {
         ),
       );
       return;
+    }
+    // 연결된 환자의 실제 기능 화면으로 이동
+    final repository = reservationRepository;
+    if (patientLinked == true && repository != null) {
+      final Widget? screen = switch (title) {
+        '검사결과' => PatientResultHubScreen(repository: repository),
+        '처방 조회' => PatientPrescriptionListScreen(
+          repository: PatientPrescriptionRepository(repository.client),
+        ),
+        '진료이력' => MedicalHistoryScreen(
+          repository: MedicalHistoryRepository(repository.client),
+        ),
+        _ => null,
+      };
+
+      if (screen != null) {
+        Navigator.of(
+          context,
+        ).push<void>(MaterialPageRoute(builder: (_) => screen));
+        return;
+      }
     }
     final dashboardContext = context;
     showModalBottomSheet<void>(
