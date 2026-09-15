@@ -22,23 +22,35 @@ class PatientReservationDetailScreen extends StatefulWidget {
 }
 
 class _PatientReservationDetailScreenState
-    extends State<PatientReservationDetailScreen> {
+    extends State<PatientReservationDetailScreen>
+    with WidgetsBindingObserver {
   late Future<PatientReservation> _detail = widget.repository.getReservation(
     widget.id,
   );
   bool _busy = false;
   bool _sending = false;
   String? _error;
-  ReservationChangeRequest? _changeRequest;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (widget.openQuestionnaire) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _questionnaire();
       });
     }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted && !_busy) _reload();
   }
 
   void _questionnaire() {
@@ -66,7 +78,6 @@ class _PatientReservationDetailScreenState
       );
       if (!mounted || result == null) return;
       setState(() {
-        _changeRequest = result;
         // 변경 신청은 예약 확정 시각을 바꾸지 않습니다.
         _detail = widget.repository.getReservation(widget.id);
       });
@@ -168,6 +179,7 @@ class _PatientReservationDetailScreenState
           );
         }
         final item = snapshot.data!;
+        final changeRequest = item.latestChangeRequest;
         return SafeArea(
           child: ListView(
             padding: const EdgeInsets.all(24),
@@ -215,24 +227,27 @@ class _PatientReservationDetailScreenState
                 ),
               ),
               const SizedBox(height: 24),
+              if (changeRequest != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Text(
+                    '${changeRequest.statusLabel}\n'
+                    '변경 요청 시간: ${changeRequest.dateLabel}'
+                    '${changeRequest.reason?.isNotEmpty == true ? '\n변경 사유: ${changeRequest.reason}' : ''}'
+                    '${changeRequest.status == 'PENDING' ? '\n승인 전까지 기존 예약 시간이 유지돼요.' : ''}',
+                  ),
+                ),
               if (item.canCancel(DateTime.now())) ...[
                 OutlinedButton.icon(
                   onPressed: _busy ? null : _questionnaire,
                   icon: const Icon(Icons.assignment_outlined),
                   label: const Text('문진표 작성·확인'),
                 ),
-                if (_changeRequest != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Text(
-                      '변경 요청 접수: ${_changeRequest!.dateLabel}\n'
-                      '${_changeRequest!.status == 'PENDING' ? '접수 당시 상태: 변경 승인 대기' : '접수 당시 상태: ${_changeRequest!.status}'}\n'
-                      '최신 승인·반려 상태 조회는 준비 중이에요. 현재 예약 시간은 위에서 확인해 주세요.',
-                    ),
-                  ),
                 OutlinedButton(
                   onPressed:
-                      _busy || item.doctorId == null || _changeRequest != null
+                      _busy ||
+                          item.doctorId == null ||
+                          changeRequest?.status == 'PENDING'
                       ? null
                       : () => _change(item),
                   child: const Text('예약 변경'),
