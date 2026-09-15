@@ -35,7 +35,10 @@ class _SessionGateState extends State<SessionGate> {
   bool _retryLogout = false;
 
   Future<void> _openChatbot() async {
-    if (!mounted || _page != _SessionPage.linked) {
+    if (!mounted ||
+        !_authenticated ||
+        (_page != _SessionPage.linked &&
+            _page != _SessionPage.unlinked)) {
       return;
     }
 
@@ -115,9 +118,8 @@ class _SessionGateState extends State<SessionGate> {
         () => _page = linked ? _SessionPage.linked : _SessionPage.unlinked,
       );
 
-      if (linked) {
-        ChatbotOverlayController.instance.activate(_openChatbot);
-      }
+      ChatbotOverlayController.instance.activate(_openChatbot);
+
     } on DioException catch (error) {
       if (!mounted) return;
       if (error.response?.statusCode == 401) {
