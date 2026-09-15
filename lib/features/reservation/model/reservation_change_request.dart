@@ -4,11 +4,20 @@ class ReservationChangeRequest {
     required this.reservationId,
     required this.requestedAt,
     required this.status,
+    this.reason,
   });
   final int id;
   final int reservationId;
   final DateTime requestedAt;
   final String status;
+  final String? reason;
+  String get statusLabel => switch (status) {
+    'PENDING' => '변경 승인 대기',
+    'APPROVED' => '변경 승인 완료',
+    'REJECTED' => '변경 반려',
+    'CANCELED' => '변경 신청 철회',
+    _ => '변경 상태 확인 필요',
+  };
 
   factory ReservationChangeRequest.fromJson(Map<String, dynamic> json) {
     final date = json['requested_reserved_at'];
@@ -24,6 +33,7 @@ class ReservationChangeRequest {
       reservationId: json['reservation'] as int,
       requestedAt: DateTime.parse(date).toUtc(),
       status: json['status'] as String,
+      reason: json['reason'] as String?,
     );
   }
 

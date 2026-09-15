@@ -1,3 +1,5 @@
+import 'reservation_change_request.dart';
+
 class PatientReservation {
   const PatientReservation({
     required this.id,
@@ -9,6 +11,7 @@ class PatientReservation {
     this.departmentId,
     this.doctorName,
     this.departmentName,
+    this.latestChangeRequest,
   });
 
   final int id;
@@ -20,6 +23,7 @@ class PatientReservation {
   final int? departmentId;
   final String? doctorName;
   final String? departmentName;
+  final ReservationChangeRequest? latestChangeRequest;
 
   factory PatientReservation.fromJson(Map<String, dynamic> json) {
     final id = json['id'];
@@ -41,12 +45,17 @@ class PatientReservation {
       cancelReason: json['cancel_reason'] as String?,
       doctorId: json['doctor'] as int?,
       departmentId: json['department'] as int?,
+      latestChangeRequest: json['latest_change_request'] == null
+          ? null
+          : ReservationChangeRequest.fromJson({
+              ...Map<String, dynamic>.from(
+                json['latest_change_request'] as Map,
+              ),
+              'reservation': id,
+            }),
     );
   }
-  PatientReservation withNames({
-    String? doctorName,
-    String? departmentName,
-  }) {
+  PatientReservation withNames({String? doctorName, String? departmentName}) {
     return PatientReservation(
       id: id,
       reservedAt: reservedAt,
@@ -57,6 +66,7 @@ class PatientReservation {
       departmentId: departmentId,
       doctorName: doctorName ?? this.doctorName,
       departmentName: departmentName ?? this.departmentName,
+      latestChangeRequest: latestChangeRequest,
     );
   }
 

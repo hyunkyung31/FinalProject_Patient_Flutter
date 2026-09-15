@@ -7,6 +7,7 @@ import 'package:flutter_patient/core/network/api_client.dart';
 import 'package:flutter_patient/features/notification/repository/notification_repository.dart';
 import 'package:flutter_patient/features/notification/view/notification_screen.dart';
 import 'package:flutter_patient/features/reservation/repository/reservation_repository.dart';
+import 'package:flutter_patient/features/reservation/view/patient_reservation_detail_screen.dart';
 
 Map<String, dynamic> notice({bool read = false, int id = 31}) => {
   'id': id,
@@ -27,6 +28,7 @@ class Adapter implements HttpClientAdapter {
   bool failRead = false;
   bool empty = false;
   bool reservationNotice = false;
+  String? changeStatus;
   Map<String, dynamic> notificationData({bool read = false}) {
     final data = notice(read: read);
     if (reservationNotice) {
@@ -40,6 +42,7 @@ class Adapter implements HttpClientAdapter {
     }
     return data;
   }
+
   int code = 200;
   @override
   Future<ResponseBody> fetch(
@@ -74,11 +77,23 @@ class Adapter implements HttpClientAdapter {
         'applicant_name': '테스트환자',
         'doctor': 3,
         'department': 1,
+        'latest_change_request': changeStatus == null
+            ? null
+            : {
+                'id': 1,
+                'requested_reserved_at': '2099-09-14T10:30:00+09:00',
+                'previous_reserved_at': '2099-09-14T09:30:00+09:00',
+                'status': changeStatus,
+                'reason': '시간 변경 요청',
+                'reviewed_at': null,
+              },
       };
     } else if (path == '/api/patient/doctors/3/') {
       data = {'id': 3, 'name': '김도윤'};
     } else if (path == '/api/patient/departments/') {
-      data = [{'id': 1, 'name': '순환기내과'}];
+      data = [
+        {'id': 1, 'name': '순환기내과'},
+      ];
     } else {
       data = {
         'page': options.queryParameters['page'] ?? 1,
@@ -113,11 +128,49 @@ void main() {
   });
   tearDown(() => client.dispose());
 
+  testWidgets('상세 재조회로 변경 상태를 복원하고 대기 중에만 변경 버튼을 잠근다', (tester) async {
+    adapter.changeStatus = 'PENDING';
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PatientReservationDetailScreen(id: 8, repository: reservations),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('예약 변경'), 200);
+    expect(
+      tester
+          .widget<OutlinedButton>(find.widgetWithText(OutlinedButton, '예약 변경'))
+          .onPressed,
+      isNull,
+    );
+    for (final status in ['APPROVED', 'REJECTED', 'CANCELED']) {
+      adapter.changeStatus = status;
+      await tester.tap(find.byTooltip('새로고침'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('예약 변경'), 200);
+      expect(
+        tester
+            .widget<OutlinedButton>(
+              find.widgetWithText(OutlinedButton, '예약 변경'),
+            )
+            .onPressed,
+        isNotNull,
+      );
+      expect(find.textContaining('최신 승인·반려 상태 조회는 준비 중'), findsNothing);
+    }
+    final detail = await tester.runAsync(() => reservations.getReservation(8));
+    expect(detail!.latestChangeRequest?.status, 'CANCELED');
+    expect(detail.latestChangeRequest?.reservationId, 8);
+    expect(detail.latestChangeRequest?.reason, '시간 변경 요청');
+  });
+
   testWidgets('예약 알림은 recipient 31을 읽고 예약 8의 최신 시간을 조회한다', (tester) async {
     adapter.reservationNotice = true;
-    await tester.pumpWidget(MaterialApp(
-      home: NotificationScreen(reservationRepository: reservations),
-    ));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NotificationScreen(reservationRepository: reservations),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('예약 변경이 승인되었습니다.'));
     await tester.pumpAndSettle();
