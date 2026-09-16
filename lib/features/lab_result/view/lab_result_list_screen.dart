@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../chatbot/repository/chatbot_repository.dart';
 import '../model/lab_result.dart';
 import '../repository/lab_result_repository.dart';
 import 'lab_result_detail_screen.dart';
@@ -46,8 +47,26 @@ class _LabResultListScreenState extends State<LabResultListScreen> {
   }
 
   void _openDetail(LabResult result) {
+    final repository = widget.repository;
+    LabResultDetailRepository? detailRepository;
+    ChatbotRepository? chatbotRepository;
+
+    if (repository is LabResultDetailRepository) {
+      detailRepository = repository as LabResultDetailRepository;
+    }
+
+    if (repository is PatientLabResultRepository) {
+      chatbotRepository = ChatbotRepository(repository.client);
+    }
+
     Navigator.of(context).push<void>(
-      MaterialPageRoute(builder: (_) => LabResultDetailScreen(result: result)),
+      MaterialPageRoute(
+        builder: (_) => LabResultDetailScreen(
+          result: result,
+          repository: detailRepository,
+          chatbotRepository: chatbotRepository,
+        ),
+      ),
     );
   }
 
@@ -137,20 +156,6 @@ class _LabResultListScreenState extends State<LabResultListScreen> {
                                           color: AppColors.mutedText,
                                         ),
                                       ),
-                                      if (result.summaryText
-                                          .trim()
-                                          .isNotEmpty) ...[
-                                        const SizedBox(height: 7),
-                                        Text(
-                                          result.summaryText,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontSize: 13,
-                                            color: AppColors.mutedText,
-                                          ),
-                                        ),
-                                      ],
                                     ],
                                   ),
                                 ),
