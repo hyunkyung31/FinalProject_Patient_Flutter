@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../ai_result/repository/patient_ai_result_repository.dart';
 import '../../ai_result/view/patient_ai_result_list_screen.dart';
+import '../../lab_result/repository/lab_result_repository.dart';
 import '../../lab_result/view/lab_result_list_screen.dart';
 import '../../patient_report/repository/patient_report_repository.dart';
 import '../../patient_report/view/patient_report_list_screen.dart';
@@ -45,7 +46,12 @@ class PatientResultHubScreen extends StatelessWidget {
             icon: Icons.science_outlined,
             title: '검사 결과',
             subtitle: '혈액검사 및 검사 결과 확인',
-            onTap: () => _open(context, const LabResultListScreen()),
+            onTap: () => _open(
+              context,
+              LabResultListScreen(
+                repository: PatientLabResultRepository(repository.client),
+              ),
+            ),
           ),
 
           // AI 분석 결과
