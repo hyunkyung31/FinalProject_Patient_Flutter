@@ -24,6 +24,13 @@ class _ChatbotConversationScreenState extends State<ChatbotConversationScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
 
+  static const _quickQuestions = [
+    "콜레스테롤이 뭐예요?",
+    '혈압은 어떻게 관리하나요?',
+    '심혈관 건강에 좋은 생활습관은?',
+    '검사 수치의 높음·낮음은 무슨 뜻인가요?',
+  ];
+
   ChatbotConversationDetail? _detail;
 
   bool _loading = true;
@@ -86,9 +93,20 @@ class _ChatbotConversationScreenState extends State<ChatbotConversationScreen> {
   }
 
   Future<void> _send() async {
-    final messageText = _messageController.text.trim();
+    await _sendMessage(_messageController.text, clearComposer: true);
+  }
 
-    if (messageText.isEmpty || _sending || !_conversation.isActive) {
+  Future<void> _sendQuickQuestion(String question) async {
+    await _sendMessage(question);
+  }
+
+  Future<void> _sendMessage(
+    String messageText, {
+    bool clearComposer = false,
+  }) async {
+    final text = messageText.trim();
+
+    if (text.isEmpty || _sending || !_conversation.isActive) {
       return;
     }
 
@@ -101,10 +119,12 @@ class _ChatbotConversationScreenState extends State<ChatbotConversationScreen> {
     try {
       final result = await widget.repository.sendMessage(
         conversationId: _conversation.id,
-        messageText: messageText,
+        messageText: text,
       );
 
-      _messageController.clear();
+      if (clearComposer) {
+        _messageController.clear();
+      }
 
       await _load(showLoading: false);
 
@@ -296,7 +316,8 @@ class _ChatbotConversationScreenState extends State<ChatbotConversationScreen> {
               ),
               SizedBox(height: 6),
               Text(
-                '공개된 검사 결과나 예약 정보에 대해 질문할 수 있어요.',
+                '일반 건강정보를 물어보거나, 병원기록이 연결되어 있다면 '
+                '공개된 의료정보에 대해 질문할 수 있어요.',
                 textAlign: TextAlign.center,
               ),
             ],
@@ -337,32 +358,57 @@ class _ChatbotConversationScreenState extends State<ChatbotConversationScreen> {
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: TextField(
-                controller: _messageController,
-                enabled: !_sending,
-                minLines: 1,
-                maxLines: 4,
-                decoration: const InputDecoration(
-                  hintText: '메시지를 입력해 주세요',
-                  border: OutlineInputBorder(),
-                ),
+            SizedBox(
+              height: 38,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _quickQuestions.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final question = _quickQuestions[index];
+
+                  return ActionChip(
+                    label: Text(question),
+                    onPressed: _sending
+                        ? null
+                        : () => _sendQuickQuestion(question),
+                  );
+                },
               ),
             ),
-            const SizedBox(width: 8),
-            IconButton.filled(
-              tooltip: '전송',
-              onPressed: _sending ? null : _send,
-              icon: _sending
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.send_rounded),
+            const SizedBox(height: 8),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _messageController,
+                    enabled: !_sending,
+                    minLines: 1,
+                    maxLines: 4,
+                    decoration: const InputDecoration(
+                      hintText: '메시지를 입력해 주세요',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  tooltip: '전송',
+                  onPressed: _sending ? null : _send,
+                  icon: _sending
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.send_rounded),
+                ),
+              ],
             ),
           ],
         ),
