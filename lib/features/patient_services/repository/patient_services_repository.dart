@@ -44,6 +44,43 @@ class PatientServicesRepository {
       _page('/api/consent-documents/', page);
   Future<PatientPage> consents(int page) => _page('/api/consents/', page);
 
+  Future<List<Map<String, dynamic>>> requiredConsentDocuments() async {
+    final documents = await _allPages('/api/consent-documents/');
+    final consents = await _allPages('/api/consents/');
+    final consentedDocumentIds = <int>{
+      for (final consent in consents)
+        if (consent['status'] == 'CONSENTED' &&
+            consent['consent_document'] is Map &&
+            consent['consent_document']['id'] is int)
+          consent['consent_document']['id'] as int,
+    };
+    final required = <Map<String, dynamic>>[];
+    for (final document in documents) {
+      if (document['consent_type'] != 'REQUIRED' ||
+          document['is_active'] != true) {
+        continue;
+      }
+      if (document['id'] is! int ||
+          document['title'] is! String ||
+          document['content_text'] is! String) {
+        throw const FormatException('필수 동의 문서 형식을 확인하지 못했어요.');
+      }
+      if (!consentedDocumentIds.contains(document['id'])) {
+        required.add(document);
+      }
+    }
+    return required;
+  }
+
+  Future<List<Map<String, dynamic>>> _allPages(String path) async {
+    final rows = <Map<String, dynamic>>[];
+    for (var page = 1; ; page++) {
+      final result = await _page(path, page);
+      rows.addAll(result.items);
+      if (!result.hasNext) return rows;
+    }
+  }
+
   Future<void> requestLink(int verificationId) async {
     await client.dio.post<Object?>(
       '/api/record-link-request/',
