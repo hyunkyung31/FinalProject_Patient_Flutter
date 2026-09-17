@@ -12,6 +12,7 @@ class TokenStorage {
   static const String _refreshTokenKey = 'auth_refresh_token';
   static const String _sessionKey = 'auth_session_v1';
   static const String _deviceKey = 'auth_device_id';
+  static const String _biometricEnabledKey = 'auth_biometric_enabled';
 
   Future<String> getDeviceId() async {
     final existing = await _storage.read(key: _deviceKey);
@@ -39,6 +40,23 @@ class TokenStorage {
   Future<void> clearTokens() async {
     await _storage.delete(key: _sessionKey);
     await _storage.delete(key: _refreshTokenKey);
+    await _storage.delete(key: _biometricEnabledKey);
+  }
+
+  Future<bool> hasSavedSession() async {
+    final token = await readRefreshToken();
+    return token != null && token.trim().isNotEmpty;
+  }
+
+  Future<bool> isBiometricLoginEnabled() async =>
+      await _storage.read(key: _biometricEnabledKey) == 'true';
+
+  Future<void> setBiometricLoginEnabled(bool enabled) async {
+    if (enabled) {
+      await _storage.write(key: _biometricEnabledKey, value: 'true');
+    } else {
+      await _storage.delete(key: _biometricEnabledKey);
+    }
   }
 
   // 리프레시 토큰 저장
