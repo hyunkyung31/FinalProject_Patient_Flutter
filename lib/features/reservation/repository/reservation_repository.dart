@@ -129,6 +129,7 @@ class ReservationRepository {
     return slots;
   }
 
+  // 연결된 본인의 기본정보에서 이름을 조회한다.
   Future<bool> hasPatientLink() async {
     final response = await client.dio.get<Map<String, dynamic>>(
       '/api/patients/me/link-status/',
