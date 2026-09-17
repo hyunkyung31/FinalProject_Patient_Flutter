@@ -7,6 +7,25 @@ import 'package:flutter_patient/features/auth/repository/auth_repository.dart';
 import 'package:flutter_patient/features/auth/service/biometric_auth_service.dart';
 import 'package:flutter_patient/features/auth/view/session_gate.dart';
 import 'package:flutter_patient/features/home/view/dashboard_screen.dart';
+import 'package:flutter_patient/features/patient_services/repository/patient_services_repository.dart';
+
+class GateConsentRepository extends PatientServicesRepository {
+  GateConsentRepository(super.client);
+  List<Map<String, dynamic>> requiredDocumentsRows = [];
+  int saved = 0;
+
+  @override
+  Future<List<Map<String, dynamic>>> requiredConsentDocuments() async =>
+      requiredDocumentsRows;
+
+  @override
+  Future<void> consent(int documentId) async {
+    saved++;
+    requiredDocumentsRows = requiredDocumentsRows
+        .where((document) => document['id'] != documentId)
+        .toList();
+  }
+}
 
 class GateRepository extends AuthRepository {
   GateRepository(ApiClient client)
@@ -76,10 +95,13 @@ void main() {
   late ApiClient client;
   late GateRepository repository;
   late GateBiometricAuthenticator biometricAuthenticator;
+  late GateConsentRepository consentRepository;
+
   setUp(() {
     client = ApiClient();
     repository = GateRepository(client);
     biometricAuthenticator = GateBiometricAuthenticator();
+    consentRepository = GateConsentRepository(client);
   });
   tearDown(() => client.dispose());
 
@@ -89,11 +111,33 @@ void main() {
         home: SessionGate(
           repository: repository,
           biometricAuthenticator: biometricAuthenticator,
+          consentRepository: consentRepository,
         ),
       ),
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets('필수 동의가 없으면 대시보드보다 동의 화면을 먼저 표시한다', (tester) async {
+    consentRepository.requiredDocumentsRows = [
+      {
+        'id': 7,
+        'title': '개인정보 처리 동의',
+        'version': '1.0',
+        'content_text': '예약과 진료 안내를 위해 개인정보를 처리합니다.',
+      },
+    ];
+    await open(tester);
+    expect(find.text('필수 약관 동의'), findsOneWidget);
+    expect(find.byType(DashboardScreen), findsNothing);
+    await tester.tap(find.byType(Checkbox));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('필수 약관에 동의하고 시작하기'));
+    await tester.pumpAndSettle();
+    expect(consentRepository.saved, 1);
+
+    expect(find.byType(DashboardScreen), findsOneWidget);
+  });
 
   testWidgets('로그아웃 확인 후 로그인 화면으로 이동하고 재시작해도 유지된다', (tester) async {
     await open(tester);

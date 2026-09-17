@@ -11,13 +11,30 @@ import '../../reservation/repository/reservation_repository.dart';
 import '../../chatbot/repository/chatbot_repository.dart';
 import '../../chatbot/view/chatbot_conversation_list_screen.dart';
 import '../../chatbot/widgets/chatbot_overlay_host.dart';
+import '../../patient_services/repository/patient_services_repository.dart';
+import '../../patient_services/view/required_consent_screen.dart';
 
-enum _SessionPage { loading, biometric, login, linked, unlinked, error }
+enum _SessionPage {
+  loading,
+  biometric,
+  login,
+  consent,
+  linked,
+  unlinked,
+  error,
+}
 
 class SessionGate extends StatefulWidget {
-  const SessionGate({super.key, this.repository, this.biometricAuthenticator});
+  const SessionGate({
+    super.key,
+    this.repository,
+    this.biometricAuthenticator,
+    this.consentRepository,
+  });
+
   final AuthRepository? repository;
   final BiometricAuthenticator? biometricAuthenticator;
+  final PatientServicesRepository? consentRepository;
 
   @override
   State<SessionGate> createState() => _SessionGateState();
@@ -27,6 +44,8 @@ class _SessionGateState extends State<SessionGate> {
   final _client = ApiClient();
   late final _reservationRepository = ReservationRepository(_client);
   late final _chatbotRepository = ChatbotRepository(_client);
+  late final _consentRepository =
+      widget.consentRepository ?? PatientServicesRepository(_client);
   late final _repository =
       widget.repository ??
       AuthRepository(apiClient: _client, tokenStorage: TokenStorage());
@@ -39,6 +58,7 @@ class _SessionGateState extends State<SessionGate> {
   bool _retryLogout = false;
   bool _biometricBusy = false;
   String? _biometricError;
+  List<Map<String, dynamic>> _requiredDocuments = [];
 
   Future<void> _openChatbot() async {
     if (!mounted ||
@@ -185,6 +205,15 @@ class _SessionGateState extends State<SessionGate> {
         setState(() => _page = _SessionPage.login);
         return;
       }
+      final documents = await _consentRepository.requiredConsentDocuments();
+      if (!mounted) return;
+      if (documents.isNotEmpty) {
+        setState(() {
+          _requiredDocuments = documents;
+          _page = _SessionPage.consent;
+        });
+        return;
+      }
       final linked = await _repository.hasPatientLink();
       if (!mounted) return;
       setState(
@@ -249,6 +278,13 @@ class _SessionGateState extends State<SessionGate> {
         return DevLoginScreen(
           repository: _repository,
           onAuthenticated: _onAuthenticated,
+        );
+      case _SessionPage.consent:
+        return RequiredConsentScreen(
+          documents: _requiredDocuments,
+          repository: _consentRepository,
+          onCompleted: _load,
+          onLogout: _confirmLogout,
         );
       case _SessionPage.unlinked:
       case _SessionPage.linked:
