@@ -379,6 +379,239 @@ class _BookingFormState extends State<BookingForm> {
     }
     if (_initialError) {
       return Center(
+        child: FilledButton(
+          onPressed: _initialize,
+          child: const Text('\uB2E4\uC2DC \uC2DC\uB3C4'),
+        ),
+      );
+    }
+    final compact = MediaQuery.textScalerOf(context).scale(1) >= 1.3;
+    Widget card(int step, String title, Widget child) => Container(
+      margin: const EdgeInsets.only(bottom: 13),
+      padding: EdgeInsets.all(compact ? 13 : 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE4ECFA)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 15,
+                backgroundColor: const Color(0xFFEAF3FF),
+                child: Text(
+                  '$step',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF286BFF),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 9),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF182438),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 11),
+          child,
+        ],
+      ),
+    );
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      children: [
+        const Text(
+          '\uC9C4\uB8CC \uC608\uC57D\uC744 \uC2DC\uC791\uD574 \uBCFC\uAE4C\uC694?',
+          style: TextStyle(
+            fontSize: 21,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFF182438),
+          ),
+        ),
+        const SizedBox(height: 5),
+        const Text(
+          '\uAC04\uD3B8\uD55C \uC21C\uC11C\uB85C \uC608\uC57D\uD560 \uC218 \uC788\uC5B4\uC694.',
+          style: TextStyle(fontSize: 14, color: Color(0xFF7182A1)),
+        ),
+        const SizedBox(height: 16),
+        card(
+          1,
+          '\uC9C4\uB8CC\uACFC \uC120\uD0DD',
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '\uC9C4\uB8CC\uB97C \uBC1B\uC744 \uC9C4\uB8CC\uACFC\uB97C \uC120\uD0DD\uD574 \uC8FC\uC138\uC694.',
+                style: TextStyle(fontSize: 13, color: Color(0xFF7182A1)),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final item in _departments)
+                    ChoiceChip(
+                      label: Text(
+                        item.name,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      selected: _department?.id == item.id,
+                      selectedColor: const Color(0xFFEAF3FF),
+                      onSelected: _busy ? null : (_) => _selectDepartment(item),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        card(
+          2,
+          '\uC758\uB8CC\uC9C4 \uC120\uD0DD',
+          Column(
+            children: [
+              if (_department == null)
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '\uC9C4\uB8CC\uACFC\uB97C \uBA3C\uC800 \uC120\uD0DD\uD574 \uC8FC\uC138\uC694.',
+                    style: TextStyle(fontSize: 13, color: Color(0xFF7182A1)),
+                  ),
+                ),
+              for (final doctor in _doctors)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const CircleAvatar(
+                    backgroundImage: AssetImage(
+                      'assets/images/reservation/doctors/doctor_default_male.png',
+                    ),
+                  ),
+                  title: Text(
+                    doctor.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  subtitle: doctor.title == null
+                      ? null
+                      : Text(
+                          doctor.title!,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                  trailing: Icon(
+                    _doctor?.id == doctor.id
+                        ? Icons.check_circle_rounded
+                        : Icons.radio_button_unchecked_rounded,
+                    color: _doctor?.id == doctor.id
+                        ? const Color(0xFF286BFF)
+                        : const Color(0xFF7182A1),
+                  ),
+                  onTap: _busy ? null : () => _selectDoctor(doctor),
+                ),
+            ],
+          ),
+        ),
+        card(
+          3,
+          '\uB0A0\uC9DC\u00B7\uC2DC\uAC04 \uC120\uD0DD',
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                '\uC624\uB298\uBD80\uD130 90\uC77C \uC774\uB0B4 \u00B7 \uD55C\uAD6D \uC2DC\uAC04 \uAE30\uC900',
+                style: TextStyle(fontSize: 13, color: Color(0xFF7182A1)),
+              ),
+              const SizedBox(height: 8),
+              if (_doctor == null)
+                const Text(
+                  '\uC758\uB8CC\uC9C4\uC744 \uBA3C\uC800 \uC120\uD0DD\uD574 \uC8FC\uC138\uC694.',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF7182A1)),
+                ),
+              if (_calendarDays.isNotEmpty)
+                BookingSlotPicker(
+                  calendarDays: _calendarDays,
+                  selectedDate: _selectedDate,
+                  slots: _slots,
+                  selectedSlot: _slot,
+                  doctorName: _doctor?.name ?? '',
+                  enabled: !_busy,
+                  onDateSelected: _selectDate,
+                  onSlotSelected: (value) {
+                    if (_busy || (value != null && !value.isAvailable)) return;
+                    setState(() => _slot = value);
+                  },
+                ),
+            ],
+          ),
+        ),
+        card(
+          4,
+          '\uC2E0\uCCAD\uC790 \uC815\uBCF4',
+          _applicant == null
+              ? const Text(
+                  '\uD658\uC790 \uC815\uBCF4\uB97C \uBD88\uB7EC\uC624\uB294 \uC911\uC774\uC5D0\uC694.',
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '\uC774\uB984   ${_applicant!.name}',
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      '\uC0DD\uB144\uC6D4\uC77C   ${_applicant!.birthDateLabel}',
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      '\uC5F0\uB77D\uCC98   ${_applicant!.contact}',
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ],
+                ),
+        ),
+        if (_error != null)
+          Text(
+            _error!,
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(context).colorScheme.error,
+            ),
+          ),
+        const SizedBox(height: 8),
+        FilledButton(
+          onPressed: _busy || _uncertain || _slot == null || !_slot!.isAvailable
+              ? null
+              : _submit,
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF286BFF),
+            minimumSize: const Size.fromHeight(50),
+          ),
+          child: Text(
+            _busy ? '\uCC98\uB9AC \uC911...' : '\uC608\uC57D \uC2E0\uCCAD',
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ignore: unused_element
+  Widget _legacyBuild(BuildContext context) {
+    if (_linked == null && _busy) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_initialError) {
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

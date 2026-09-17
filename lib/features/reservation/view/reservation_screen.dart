@@ -119,7 +119,7 @@ class _ReservationContent extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
     backgroundColor: AppColors.background,
     appBar: AppBar(
-      title: const Text('진료 예약'),
+      title: const Text('\uC9C4\uB8CC \uC608\uC57D'),
       actions: [
         if (showListAction)
           IconButton(
@@ -134,12 +134,22 @@ class _ReservationContent extends StatelessWidget {
       ],
     ),
     body: repository != null
-        ? SafeArea(
-            child: BookingForm(
-              repository: repository!,
-              linked: linked,
-              initialVerification: verification,
-            ),
+        ? Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                'assets/images/reservation/backgrounds/reservation_bg.png',
+                fit: BoxFit.cover,
+                alignment: Alignment.bottomCenter,
+              ),
+              SafeArea(
+                child: BookingForm(
+                  repository: repository!,
+                  linked: linked,
+                  initialVerification: verification,
+                ),
+              ),
+            ],
           )
         : SafeArea(
             child: Center(

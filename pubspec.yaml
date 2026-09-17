@@ -72,7 +72,10 @@ flutter:
 
   assets:
     - assets/images/bomi/
+    - assets/images/reservation/backgrounds/
+    - assets/images/reservation/doctors/
     - assets/images/onboarding/01_health_dashboard.png
+    - assets/images/reservation/
     - assets/images/onboarding/02_login_fingerprint.png
     - assets/images/onboarding/03_appointment_medical_records.png
     - assets/images/onboarding/04_blood_cad_cac.png
