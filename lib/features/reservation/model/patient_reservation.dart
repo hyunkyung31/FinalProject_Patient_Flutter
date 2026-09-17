@@ -55,20 +55,20 @@ class PatientReservation {
             }),
     );
   }
-  PatientReservation withNames({String? doctorName, String? departmentName}) {
-    return PatientReservation(
-      id: id,
-      reservedAt: reservedAt,
-      status: status,
-      applicantName: applicantName,
-      cancelReason: cancelReason,
-      doctorId: doctorId,
-      departmentId: departmentId,
-      doctorName: doctorName ?? this.doctorName,
-      departmentName: departmentName ?? this.departmentName,
-      latestChangeRequest: latestChangeRequest,
-    );
-  }
+
+  PatientReservation withNames({String? doctorName, String? departmentName}) =>
+      PatientReservation(
+        id: id,
+        reservedAt: reservedAt,
+        status: status,
+        applicantName: applicantName,
+        cancelReason: cancelReason,
+        doctorId: doctorId,
+        departmentId: departmentId,
+        doctorName: doctorName ?? this.doctorName,
+        departmentName: departmentName ?? this.departmentName,
+        latestChangeRequest: latestChangeRequest,
+      );
 
   String get statusLabel => switch (status) {
     'REQUESTED' => '승인 대기',
@@ -76,15 +76,15 @@ class PatientReservation {
     'CANCELED' => '예약 취소',
     _ => '상태 확인 필요',
   };
+
   bool isPast(DateTime now) =>
       status == 'CANCELED' || reservedAt.isBefore(now.toUtc());
   bool canCancel(DateTime now) =>
       !isPast(now) && (status == 'REQUESTED' || status == 'ACCEPTED');
 
-  // 한국 병원 예약 시각. 기기 시간대가 UTC여도 한국 시간으로 표시합니다.
   String get dateLabel {
     final date = reservedAt.add(const Duration(hours: 9));
-    String two(int n) => n.toString().padLeft(2, '0');
+    String two(int value) => value.toString().padLeft(2, '0');
     return '${date.year}.${two(date.month)}.${two(date.day)} · ${two(date.hour)}:${two(date.minute)}';
   }
 }

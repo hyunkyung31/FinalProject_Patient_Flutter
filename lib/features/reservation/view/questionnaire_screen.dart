@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+
 import '../repository/reservation_repository.dart';
 
 class QuestionnaireScreen extends StatefulWidget {
@@ -9,96 +10,81 @@ class QuestionnaireScreen extends StatefulWidget {
     required this.repository,
     this.onSubmitted,
   });
+
   final int reservationId;
   final ReservationRepository repository;
   final VoidCallback? onSubmitted;
+
   @override
   State<QuestionnaireScreen> createState() => _QuestionnaireScreenState();
 }
 
 class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
-  late final Future<List<dynamic>> forms = _load();
-  Future<List<dynamic>> _load() async {
+  late final Future<List<Map<String, dynamic>>> _forms = _load();
+
+  Future<List<Map<String, dynamic>>> _load() async {
     final response = await widget.repository.client.dio.get<Object?>(
       '/api/patient/reservations/${widget.reservationId}/questionnaires/',
     );
-    if (response.data is! List) throw const FormatException('문진표 응답 오류');
-    final entries = (response.data as List)
-        .map((e) => Map<String, dynamic>.from(e as Map))
+    if (response.data is! List) throw const FormatException('Invalid response');
+    return (response.data as List)
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
         .toList();
-    if (entries.any(
-      (e) =>
-          e['response_status'] == 'SUBMITTED' ||
-          e['response_status'] == 'REVIEWED',
-    )) {
-      final saved = await widget.repository.client.dio.get<Map<String, dynamic>>(
-        '/api/patient/reservations/${widget.reservationId}/questionnaire-responses/',
-      );
-      if (saved.data?['reservation_id'] != widget.reservationId ||
-          saved.data?['results'] is! List) {
-        throw const FormatException('저장된 문진 응답 오류');
-      }
-      for (final entry in entries) {
-        if (entry['response_status'] != 'SUBMITTED' &&
-            entry['response_status'] != 'REVIEWED') {
-          continue;
-        }
-        final matches = (saved.data!['results'] as List)
-            .where(
-              (r) =>
-                  r is Map &&
-                  r['template'] == entry['template']['id'] &&
-                  r['id'] == entry['response_id'] &&
-                  r['reservation'] == widget.reservationId,
-            )
-            .toList();
-        if (matches.length != 1 ||
-            !['SUBMITTED', 'REVIEWED'].contains(matches.single['status'])) {
-          throw const FormatException('저장된 문진 상태 오류');
-        }
-        entry['answers'] = matches.single['answers'];
-        entry['response_status'] = matches.single['status'];
-      }
-    }
-    return entries;
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('예약 문진표')),
-    body: FutureBuilder<List<dynamic>>(
-      future: forms,
+    backgroundColor: const Color(0xFFF7FBFF),
+    appBar: AppBar(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.transparent,
+      foregroundColor: const Color(0xFF182438),
+      title: const Text(
+        '\uC608\uC57D \uBB38\uC9C4\uD45C',
+        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+      ),
+    ),
+    body: FutureBuilder<List<Map<String, dynamic>>>(
+      future: _forms,
       builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return const Center(
-            child: Text('문진표를 불러오지 못했어요.\n뒤로 돌아간 후 다시 열어 주세요.'),
-          );
-        }
-        if (!snapshot.hasData) {
+        if (snapshot.connectionState != ConnectionState.done) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (snapshot.data!.isEmpty) {
+        if (snapshot.hasError) {
           return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(24),
-              child: Text(
-                '현재 이 예약에 등록된 문진표가 없어요.\n예약 상세에서 나중에 다시 확인할 수 있어요.',
-                textAlign: TextAlign.center,
-              ),
+            child: Text(
+              '\uBB38\uC9C4\uD45C\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC5B4\uC694.',
+            ),
+          );
+        }
+        final forms = snapshot.data!;
+        if (forms.isEmpty) {
+          return const Center(
+            child: Text(
+              '\uB4F1\uB85D\uB41C \uBB38\uC9C4\uD45C\uAC00 \uC5C6\uC5B4\uC694.',
             ),
           );
         }
         return ListView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
-            const Text('진료에 참고할 내용을 작성해 주세요. 문진표 제출은 예약 승인과 별개예요.'),
-            for (final entry in snapshot.data!)
+            const Text(
+              '\uC9C4\uB8CC\uC5D0 \uCC38\uACE0\uD560 \uB0B4\uC6A9\uC744 \uC791\uC131\uD574 \uC8FC\uC138\uC694.\n\uBB38\uC9C4\uD45C \uC81C\uCD9C\uC740 \uC608\uC57D \uC2B9\uC778\uACFC \uBCC4\uAC1C\uC608\uC694.',
+              style: TextStyle(
+                fontSize: 14,
+                height: 1.45,
+                color: Color(0xFF7182A1),
+              ),
+            ),
+            const SizedBox(height: 14),
+            for (final entry in forms)
               _QuestionnaireForm(
-                key: ValueKey((entry as Map)['template']['id']),
-                entry: Map<String, dynamic>.from(entry),
+                key: ValueKey((entry['template'] as Map?)?['id']),
+                entry: entry,
                 repository: widget.repository,
                 reservationId: widget.reservationId,
-                onSubmitted: widget.onSubmitted,
+                onCompleted: () => Navigator.of(context).pop(true),
               ),
           ],
         );
@@ -113,337 +99,269 @@ class _QuestionnaireForm extends StatefulWidget {
     required this.entry,
     required this.repository,
     required this.reservationId,
-    this.onSubmitted,
+    required this.onCompleted,
   });
+
   final Map<String, dynamic> entry;
   final ReservationRepository repository;
   final int reservationId;
-  final VoidCallback? onSubmitted;
+  final VoidCallback onCompleted;
+
   @override
   State<_QuestionnaireForm> createState() => _QuestionnaireFormState();
 }
 
 class _QuestionnaireFormState extends State<_QuestionnaireForm> {
-  final answers = <int, Object>{};
-  final formKey = GlobalKey<FormState>();
-  final controllers = <int, TextEditingController>{};
-  int stepIndex = 0;
-  bool reviewing = false;
-  bool restored = false;
+  final _formKey = GlobalKey<FormState>();
+  final _answers = <int, Object>{};
+  final _controllers = <int, TextEditingController>{};
+  bool _busy = false;
+  bool _reviewing = false;
+  int _stepIndex = 0;
+  String? _message;
+
+  late final Map<String, dynamic> _template = Map<String, dynamic>.from(
+    widget.entry['template'] as Map,
+  );
+  late final List<Map<String, dynamic>> _questions =
+      ((_template['questions'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList()
+        ..sort(
+          (a, b) => ((a['display_order'] as int?) ?? 0).compareTo(
+            (b['display_order'] as int?) ?? 0,
+          ),
+        );
+  late String? _status = widget.entry['response_status'] as String?;
 
   @override
   void initState() {
     super.initState();
-    if (!existing) return;
-    try {
-      final rows = widget.entry['answers'];
-      if (rows is! List) return;
-      final loaded = <int, Object>{};
-      final seen = <int>{};
-      for (final row in rows) {
-        if (row is! Map || row['question'] is! int) {
-          throw const FormatException();
-        }
-        final id = row['question'] as int;
-        if (!seen.add(id)) throw const FormatException();
-        final q = questions.singleWhere((q) => q['id'] == id);
-        final field = switch (q['question_type']) {
-          'TEXT' || 'SINGLE' => 'answer_text',
-          'NUMBER' => 'answer_numeric',
-          'BOOLEAN' => 'answer_boolean',
-          'MULTI' => 'answer_json',
-          _ => throw const FormatException(),
-        };
-        Object? value = row[field];
-        if (value == null) continue;
-        if (field == 'answer_numeric') {
-          value = num.tryParse(value.toString());
-          if (value is! num || !value.isFinite) throw const FormatException();
-        } else if ((field == 'answer_text' && value is! String) ||
-            (field == 'answer_boolean' && value is! bool) ||
-            (field == 'answer_json' &&
-                (value is! List || value.any((v) => v is! String)))) {
-          throw const FormatException();
-        }
-        if (value == null) throw const FormatException();
-        loaded[id] = value;
-      }
-      answers.addAll(loaded);
-      restored = true;
-    } catch (_) {
-      // Never enable replacement saves when an existing answer cannot be restored.
-      restored = false;
-    }
-  }
-
-  List<int> get steps =>
-      questions.map((q) => (q['step'] as int?) ?? 1).toSet().toList()..sort();
-  bool visible(Map q) {
-    final condition = q['condition_json'];
-    if (condition is! Map || condition['source'] == 'previous_answer') {
-      return true;
-    }
-    Object? actual;
-    for (final source in questions) {
-      if (source['question_code'] == condition['question_code']) {
-        actual = answers[source['id']];
+    final rows = widget.entry['answers'];
+    if (rows is List) {
+      for (final row in rows.whereType<Map>()) {
+        if (row['question'] is! int) continue;
+        final value =
+            row['answer_text'] ??
+            row['answer_numeric'] ??
+            row['answer_boolean'] ??
+            row['answer_json'];
+        if (value != null) _answers[row['question'] as int] = value as Object;
       }
     }
-    return switch (condition['operator']) {
-      'equals' => actual == condition['value'],
-      'contains' => actual is List && actual.contains(condition['value']),
-      'in' =>
-        condition['value'] is List &&
-            (condition['value'] as List).contains(actual),
-      _ => true,
-    };
-  }
-
-  void clearHidden() {
-    for (var pass = 0; pass < questions.length; pass++) {
-      bool removed = false;
-      for (final q in questions) {
-        if (!visible(q)) {
-          removed = answers.remove(q['id']) != null || removed;
-          controllers[q['id']]?.clear();
-        }
-      }
-      if (!removed) break;
-    }
-  }
-
-  bool missing(Map q) {
-    final value = answers[q['id']];
-    return q['is_required'] == true &&
-        visible(q) &&
-        (value == null || value == '' || (value is List && value.isEmpty));
-  }
-
-  String answerLabel(Map q) {
-    final value = answers[q['id']];
-    if (value == null || (value is List && value.isEmpty)) return '미작성';
-    if (value is bool) return value ? '예' : '아니요';
-    String label(Object? v) {
-      for (final option in (q['options_json'] as List?) ?? []) {
-        if (option['value'] == v) return option['label'] as String;
-      }
-      return '$v';
-    }
-
-    return value is List ? value.map(label).join(', ') : label(value);
   }
 
   @override
   void dispose() {
-    for (final controller in controllers.values) {
+    for (final controller in _controllers.values) {
       controller.dispose();
     }
     super.dispose();
   }
 
-  late final Map template = widget.entry['template'] as Map;
-  late final List<Map> questions =
-      (template['questions'] as List).cast<Map>().toList()..sort(
-        (a, b) =>
-            (a['display_order'] as int).compareTo(b['display_order'] as int),
-      );
-  late String? status = widget.entry['response_status'] as String?;
-  late final bool existing =
-      status != null || widget.entry['response_id'] != null;
-  bool busy = false;
-  bool processing = false;
-  bool uncertain = false;
-  String? message;
-  bool get supported => questions.every(
-    (q) => [
-      'TEXT',
-      'SINGLE',
-      'MULTI',
-      'BOOLEAN',
-      'NUMBER',
-    ].contains(q['question_type']),
-  );
-  bool get locked =>
-      (existing && !restored) ||
-      uncertain ||
-      !supported ||
-      status == 'SUBMITTED' ||
-      status == 'REVIEWED';
-  String get path =>
-      '/api/patient/reservations/${widget.reservationId}/questionnaire-responses/';
+  List<int> get _steps {
+    final result =
+        _questions.map((q) => (q['step'] as int?) ?? 1).toSet().toList()
+          ..sort();
+    return result.isEmpty ? [1] : result;
+  }
 
-  Future<void> save(bool submit, {bool advance = false}) async {
-    if (busy || locked) return;
-    if (!(formKey.currentState?.validate() ?? false)) return;
-    clearHidden();
-    if ((submit || advance) &&
-        questions.any(
-          (q) =>
-              (submit || ((q['step'] as int?) ?? 1) == steps[stepIndex]) &&
-              missing(q),
-        )) {
-      setState(() => message = '필수 질문에 모두 답해 주세요.');
+  bool get _readOnly => _status == 'SUBMITTED' || _status == 'REVIEWED';
+
+  bool _missing(Map<String, dynamic> question) {
+    final value = _answers[question['id']];
+    return question['is_required'] == true &&
+        (value == null || value == '' || (value is List && value.isEmpty));
+  }
+
+  String _answerLabel(Map<String, dynamic> question) {
+    final value = _answers[question['id']];
+    if (value == null) return '\uBBF8\uC791\uC131';
+    if (value is bool) return value ? '\uC608' : '\uC544\uB2C8\uC694';
+    final options = (question['options_json'] as List?) ?? const [];
+    String label(Object value) {
+      for (final option in options.whereType<Map>()) {
+        if (option['value'] == value) return '${option['label']}';
+      }
+      return '$value';
+    }
+
+    return value is List
+        ? value.map((item) => label(item as Object)).join(', ')
+        : label(value);
+  }
+
+  Future<void> _save(bool submit, {bool advance = false}) async {
+    if (_busy || _readOnly || !(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+    final scope = submit
+        ? _questions
+        : _questions.where(
+            (q) => ((q['step'] as int?) ?? 1) == _steps[_stepIndex],
+          );
+    if (scope.any(_missing)) {
+      setState(
+        () => _message =
+            '\uD544\uC218 \uC9C8\uBB38\uC744 \uBAA8\uB450 \uC791\uC131\uD574 \uC8FC\uC138\uC694.',
+      );
       return;
     }
     setState(() {
-      busy = true;
-      message = null;
+      _busy = true;
+      _message = null;
     });
-    bool sent = false;
     try {
-      if (submit) {
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (c) => AlertDialog(
-            title: const Text('문진표를 제출할까요?'),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('제출한 뒤에는 수정할 수 없어요.'),
-                  for (final q in questions.where(visible))
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Text('${q['question_text']}\n${answerLabel(q)}'),
-                    ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(c, false),
-                child: const Text('돌아가기'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(c, true),
-                child: const Text('제출'),
-              ),
-            ],
-          ),
-        );
-        if (!mounted || confirmed != true) return;
-      }
-      sent = true;
-      setState(() => processing = true);
-      final saved = await widget.repository.client.dio
-          .put<Map<String, dynamic>>(
-            path,
-            data: {
-              'template_id': template['id'],
-              'answers': [
-                for (final a in answers.entries)
-                  {'question_id': a.key, 'value': a.value},
-              ],
-            },
-          );
-      if (saved.data?['status'] != 'DRAFT') {
-        throw const FormatException('저장 응답 오류');
-      }
+      final path =
+          '/api/patient/reservations/${widget.reservationId}/questionnaire-responses/';
+      await widget.repository.client.dio.put<Map<String, dynamic>>(
+        path,
+        data: {
+          'template_id': _template['id'],
+          'answers': [
+            for (final item in _answers.entries)
+              {'question_id': item.key, 'value': item.value},
+          ],
+        },
+      );
       if (!mounted) return;
-      setState(() => status = 'DRAFT');
-      if (submit) {
-        final result = await widget.repository.client.dio
-            .post<Map<String, dynamic>>(
-              '${path}submit/',
-              data: {'template_id': template['id']},
-            );
-        if (result.data?['status'] != 'SUBMITTED') {
-          throw const FormatException('제출 응답 오류');
-        }
-        if (!mounted) return;
+      if (!submit) {
         setState(() {
-          status = 'SUBMITTED';
-          message = '문진표를 제출했어요.';
-        });
-        widget.onSubmitted?.call();
-      } else {
-        setState(() {
-          message = '임시 저장했어요. 이 화면에서는 계속 작성할 수 있어요.';
+          _status = 'DRAFT';
+          _message = '\uC784\uC2DC \uC800\uC7A5\uD588\uC5B4\uC694.';
           if (advance) {
-            if (stepIndex < steps.length - 1) {
-              stepIndex++;
+            if (_stepIndex < _steps.length - 1) {
+              _stepIndex++;
             } else {
-              reviewing = true;
+              _reviewing = true;
             }
           }
         });
+        return;
       }
-    } catch (e) {
+      final response = await widget.repository.client.dio
+          .post<Map<String, dynamic>>(
+            '${path}submit/',
+            data: {'template_id': _template['id']},
+          );
+      if (response.data?['status'] != 'SUBMITTED') {
+        throw const FormatException('Submit failed');
+      }
       if (!mounted) return;
-      final response = e is DioException ? e.response : null;
-      final data = response?.data;
-      setState(() {
-        uncertain =
-            sent && (response == null || (response.statusCode ?? 500) >= 500);
-        if (data is Map && data['detail'] == '이미 제출된 문진표입니다.') uncertain = true;
-        message = uncertain
-            ? '처리 결과를 확인해야 해요. 뒤로 돌아간 후 문진표를 다시 열어 상태를 확인해 주세요.'
-            : data is Map && data['detail'] is String
-            ? data['detail'] as String
-            : '저장하지 못했어요. 다시 시도해 주세요.';
-      });
+      setState(() => _status = 'SUBMITTED');
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const CircleAvatar(
+                radius: 30,
+                backgroundColor: Color(0xFFEAF3FF),
+                child: Icon(
+                  Icons.check_rounded,
+                  size: 34,
+                  color: Color(0xFF286BFF),
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                '\uBB38\uC9C4\uD45C\uAC00 \uC81C\uCD9C\uB418\uC5C8\uC2B5\uB2C8\uB2E4',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                '\uC758\uB8CC\uC9C4\uC5D0\uAC8C \uC804\uB2EC\uB418\uC5C8\uC5B4\uC694.',
+                style: TextStyle(fontSize: 13, color: Color(0xFF7182A1)),
+              ),
+            ],
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('\uD655\uC778'),
+            ),
+          ],
+        ),
+      );
+      if (mounted) widget.onCompleted();
+    } on DioException catch (error) {
+      if (mounted) setState(() => _message = reservationErrorMessage(error));
     } finally {
-      if (mounted) {
-        setState(() {
-          busy = false;
-          processing = false;
-        });
-      }
+      if (mounted) setState(() => _busy = false);
     }
   }
 
-  Widget question(Map q) {
-    final id = q['id'] as int;
-    final type = q['question_type'];
-    final options = (q['options_json'] as List?) ?? [];
-    final enabled = !busy && !locked;
+  Widget _question(Map<String, dynamic> question) {
+    final id = question['id'] as int;
+    final type = question['question_type'] as String? ?? 'TEXT';
+    final options = (question['options_json'] as List?) ?? const [];
+    final enabled = !_busy && !_readOnly;
     void update(Object? value) => setState(() {
       if (value == null || value == '') {
-        answers.remove(id);
+        _answers.remove(id);
       } else {
-        answers[id] = value;
+        _answers[id] = value;
       }
-      clearHidden();
     });
-    return Padding(
-      key: ValueKey(id),
-      padding: const EdgeInsets.symmetric(vertical: 12),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFBFCFF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE5ECF8)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '${q['question_text']}${q['is_required'] == true ? ' (필수)' : ''}',
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 12,
+                backgroundColor: const Color(0xFFEAF3FF),
+                child: Text(
+                  '${_questions.indexOf(question) + 1}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF286BFF),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${question['question_text']}${question['is_required'] == true ? ' (\uD544\uC218)' : ''}',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF182438),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           if (type == 'TEXT' || type == 'NUMBER')
             TextFormField(
-              controller: controllers.putIfAbsent(
+              controller: _controllers.putIfAbsent(
                 id,
                 () =>
-                    TextEditingController(text: answers[id]?.toString() ?? ''),
+                    TextEditingController(text: _answers[id]?.toString() ?? ''),
               ),
               enabled: enabled,
-              keyboardType: type == 'NUMBER'
-                  ? const TextInputType.numberWithOptions(
-                      decimal: true,
-                      signed: true,
-                    )
-                  : TextInputType.multiline,
               maxLines: type == 'TEXT' ? 3 : 1,
-              decoration: const InputDecoration(border: OutlineInputBorder()),
-              validator: (value) {
-                if (type == 'NUMBER' &&
-                    value != null &&
-                    value.trim().isNotEmpty) {
-                  final n = num.tryParse(value.trim());
-                  if (n == null || !n.isFinite) return '올바른 숫자를 입력해 주세요.';
-                }
-                return null;
-              },
-              onChanged: (value) => update(
-                type == 'NUMBER' ? num.tryParse(value.trim()) : value.trim(),
+              decoration: const InputDecoration(
+                hintText:
+                    '\uB0B4\uC6A9\uC744 \uC785\uB825\uD574 \uC8FC\uC138\uC694.',
+                border: OutlineInputBorder(),
               ),
+              onChanged: (value) =>
+                  update(type == 'NUMBER' ? num.tryParse(value) : value.trim()),
             ),
           if (type == 'BOOLEAN')
             Wrap(
@@ -451,8 +369,8 @@ class _QuestionnaireFormState extends State<_QuestionnaireForm> {
               children: [
                 for (final value in [true, false])
                   ChoiceChip(
-                    label: Text(value ? '예' : '아니요'),
-                    selected: answers[id] == value,
+                    label: Text(value ? '\uC608' : '\uC544\uB2C8\uC694'),
+                    selected: _answers[id] == value,
                     onSelected: enabled
                         ? (selected) => update(selected ? value : null)
                         : null,
@@ -462,37 +380,33 @@ class _QuestionnaireFormState extends State<_QuestionnaireForm> {
           if (type == 'SINGLE' || type == 'MULTI')
             Wrap(
               spacing: 8,
+              runSpacing: 8,
               children: [
-                for (final option in options)
+                for (final option in options.whereType<Map>())
                   FilterChip(
-                    label: Text(option['label'] as String),
+                    label: Text(
+                      '${option['label']}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
                     selected: type == 'SINGLE'
-                        ? answers[id] == option['value']
-                        : ((answers[id] as List?) ?? []).contains(
+                        ? _answers[id] == option['value']
+                        : ((_answers[id] as List?) ?? const []).contains(
                             option['value'],
                           ),
+                    selectedColor: const Color(0xFFEAF3FF),
                     onSelected: !enabled
                         ? null
                         : (selected) {
                             if (type == 'SINGLE') {
-                              update(selected ? option['value'] : null);
+                              update(
+                                selected ? option['value'] as Object : null,
+                              );
                             } else {
                               final values = List<Object>.from(
-                                (answers[id] as List?) ?? [],
+                                (_answers[id] as List?) ?? const [],
                               );
                               if (selected) {
-                                final exclusive =
-                                    (q['ui_config_json'] is Map
-                                        ? q['ui_config_json']['exclusive_values']
-                                              as List?
-                                        : null) ??
-                                    [];
-                                if (exclusive.contains(option['value'])) {
-                                  values.clear();
-                                } else {
-                                  values.removeWhere(exclusive.contains);
-                                }
-                                values.add(option['value']);
+                                values.add(option['value'] as Object);
                               } else {
                                 values.remove(option['value']);
                               }
@@ -508,112 +422,142 @@ class _QuestionnaireFormState extends State<_QuestionnaireForm> {
   }
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
+  Widget build(BuildContext context) {
+    final current = _questions
+        .where((q) => ((q['step'] as int?) ?? 1) == _steps[_stepIndex])
+        .toList();
+    return Container(
       padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x09467BC0),
+            blurRadius: 14,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
       child: Form(
-        key: formKey,
+        key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              template['name'] as String,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            Text(switch (status) {
-              'DRAFT' => '임시 저장',
-              'SUBMITTED' => '제출 완료',
-              'REVIEWED' => '의료진 확인 완료',
-              _ => '작성 전',
-            }),
-            if (existing && !restored)
-              const Text(
-                '기존 답변을 보호하기 위해 수정은 잠겨 있어요. 저장된 답변을 복원하지 못했어요. 뒤로 돌아간 후 다시 열어 주세요.',
-              )
-            else if (!supported)
-              const Text('아직 지원하지 않는 질문이 있어요. 병원에 문의해 주세요.')
-            else ...[
-              if (status == 'SUBMITTED' || status == 'REVIEWED') ...[
-                const Text('제출한 내용이에요. 제출 후에는 수정할 수 없어요.'),
-                for (final q in questions.where(visible))
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(q['question_text'] as String),
-                    subtitle: Text(answerLabel(q)),
-                  ),
-              ] else ...[
-                if (questions.any(
-                  (q) =>
-                      q['condition_json'] is Map &&
-                      q['condition_json']['source'] == 'previous_answer',
-                ))
-                  const Text(
-                    '이전 문진 답변을 불러올 수 없어 관련 질문도 함께 표시해요. 현재 상태에 맞게 답해 주세요.',
-                  ),
-                if (steps.isNotEmpty)
-                  Text(
-                    reviewing
-                        ? '작성 내용 확인'
-                        : '${stepIndex + 1} / ${steps.length}단계',
-                  ),
-                if (reviewing)
-                  for (final q in questions.where(visible))
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(q['question_text'] as String),
-                      subtitle: Text(answerLabel(q)),
-                    )
-                else
-                  for (final q in questions.where(
-                    (q) =>
-                        visible(q) &&
-                        ((q['step'] as int?) ?? 1) == steps[stepIndex],
-                  ))
-                    question(q),
-                if (message != null) Text(message!),
-                if (processing) const LinearProgressIndicator(),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    if (stepIndex > 0 || reviewing)
-                      TextButton(
-                        onPressed: busy || locked
-                            ? null
-                            : () => setState(() {
-                                if (reviewing) {
-                                  reviewing = false;
-                                } else {
-                                  stepIndex--;
-                                }
-                                message = null;
-                              }),
-                        child: const Text('이전'),
-                      ),
-                    OutlinedButton(
-                      onPressed: busy || locked ? null : () => save(false),
-                      child: const Text('임시 저장'),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${_template['name']}',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF182438),
                     ),
-                    if (steps.length > 1 && !reviewing)
-                      FilledButton(
-                        onPressed: busy || locked
-                            ? null
-                            : () => save(false, advance: true),
-                        child: Text(
-                          stepIndex == steps.length - 1 ? '작성 내용 확인' : '다음',
-                        ),
-                      ),
-                    if (reviewing || steps.length <= 1)
-                      FilledButton(
-                        onPressed: busy || locked ? null : () => save(true),
-                        child: const Text('최종 제출'),
-                      ),
-                  ],
+                  ),
+                ),
+                Text(
+                  _readOnly
+                      ? '\uC791\uC131 \uB0B4\uC6A9 \uD655\uC778'
+                      : '${_stepIndex + 1} / ${_steps.length} \uB2E8\uACC4',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF286BFF),
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ],
-            ],
+            ),
+            const SizedBox(height: 12),
+            LinearProgressIndicator(
+              value: _readOnly ? 1 : (_stepIndex + 1) / _steps.length,
+              minHeight: 4,
+              color: const Color(0xFF286BFF),
+              backgroundColor: const Color(0xFFE5ECF8),
+            ),
+            const SizedBox(height: 14),
+            if (_readOnly || _reviewing)
+              for (final question in _questions)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    '${question['question_text']}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  subtitle: Text(
+                    _answerLabel(question),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF7182A1),
+                    ),
+                  ),
+                )
+            else
+              for (final question in current) _question(question),
+            if (_message != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  _message!,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF486DAE),
+                  ),
+                ),
+              ),
+            if (!_readOnly)
+              Row(
+                children: [
+                  if (_stepIndex > 0 || _reviewing)
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _busy
+                            ? null
+                            : () => setState(() {
+                                if (_reviewing) {
+                                  _reviewing = false;
+                                } else {
+                                  _stepIndex--;
+                                }
+                              }),
+                        child: const Text('\uC774\uC804'),
+                      ),
+                    ),
+                  if (_stepIndex > 0 || _reviewing) const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: _busy ? null : () => _save(false),
+                      child: const Text('\uC784\uC2DC \uC800\uC7A5'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _busy
+                          ? null
+                          : () => (_reviewing || _steps.length == 1
+                                ? _save(true)
+                                : _save(false, advance: true)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF286BFF),
+                      ),
+                      child: Text(
+                        _busy
+                            ? '\uCC98\uB9AC \uC911...'
+                            : (_reviewing || _steps.length == 1
+                                  ? '\uCD5C\uC885 \uC81C\uCD9C'
+                                  : '\uB2E4\uC74C'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
           ],
         ),
       ),
-    ),
-  );
+    );
+  }
 }
