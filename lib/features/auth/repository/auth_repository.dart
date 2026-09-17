@@ -41,6 +41,13 @@ class AuthRepository {
     return linked;
   }
 
+  Future<bool> requiresBiometricLogin() async =>
+      await tokenStorage.isBiometricLoginEnabled() &&
+      await tokenStorage.hasSavedSession();
+
+  Future<void> setBiometricLoginEnabled(bool enabled) =>
+      tokenStorage.setBiometricLoginEnabled(enabled);
+
   Future<void> clearSession() async {
     _apiClient.clearAccessToken();
     await tokenStorage.clearTokens();

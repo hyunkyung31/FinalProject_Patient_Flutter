@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_patient/core/network/api_client.dart';
 import 'package:flutter_patient/core/storage/token_storage.dart';
 import 'package:flutter_patient/features/auth/repository/auth_repository.dart';
+import 'package:flutter_patient/features/auth/service/biometric_auth_service.dart';
 import 'package:flutter_patient/features/auth/view/session_gate.dart';
 import 'package:flutter_patient/features/home/view/dashboard_screen.dart';
 import 'package:flutter_patient/features/patient_services/repository/patient_services_repository.dart';
@@ -31,6 +32,8 @@ class GateRepository extends AuthRepository {
     : super(apiClient: client, tokenStorage: TokenStorage());
   bool restored = true;
   bool linked = false;
+  bool biometricRequired = false;
+  bool biometricEnabled = false;
   bool cleared = false;
   int restores = 0;
   int checks = 0;
@@ -55,6 +58,14 @@ class GateRepository extends AuthRepository {
   }
 
   @override
+  Future<bool> requiresBiometricLogin() async => biometricRequired;
+
+  @override
+  Future<void> setBiometricLoginEnabled(bool enabled) async {
+    biometricEnabled = enabled;
+  }
+
+  @override
   Future<bool> hasPatientLink() async {
     checks++;
     if (linkError != null) throw linkError!;
@@ -65,13 +76,31 @@ class GateRepository extends AuthRepository {
   Future<void> clearSession() async => cleared = true;
 }
 
+class GateBiometricAuthenticator implements BiometricAuthenticator {
+  bool available = true;
+  bool authenticated = true;
+  int requests = 0;
+
+  @override
+  Future<bool> authenticate() async {
+    requests++;
+    return authenticated;
+  }
+
+  @override
+  Future<bool> isAvailable() async => available;
+}
+
 void main() {
   late ApiClient client;
   late GateRepository repository;
+  late GateBiometricAuthenticator biometricAuthenticator;
   late GateConsentRepository consentRepository;
+
   setUp(() {
     client = ApiClient();
     repository = GateRepository(client);
+    biometricAuthenticator = GateBiometricAuthenticator();
     consentRepository = GateConsentRepository(client);
   });
   tearDown(() => client.dispose());
@@ -81,6 +110,7 @@ void main() {
       MaterialApp(
         home: SessionGate(
           repository: repository,
+          biometricAuthenticator: biometricAuthenticator,
           consentRepository: consentRepository,
         ),
       ),
@@ -205,5 +235,19 @@ void main() {
     await open(tester);
     expect(repository.cleared, isTrue);
     expect(find.text('카카오 로그인/회원가입'), findsOneWidget);
+  });
+  testWidgets('생체 로그인 활성 세션은 인증 성공 뒤에만 홈으로 이동한다', (tester) async {
+    repository.biometricRequired = true;
+
+    await open(tester);
+
+    expect(find.text('생체 인증으로 로그인'), findsOneWidget);
+    expect(repository.restores, 0);
+    await tester.tap(find.text('생체 인증하기'));
+    await tester.pumpAndSettle();
+
+    expect(biometricAuthenticator.requests, 1);
+    expect(repository.restores, 1);
+    expect(find.byType(DashboardScreen), findsOneWidget);
   });
 }
