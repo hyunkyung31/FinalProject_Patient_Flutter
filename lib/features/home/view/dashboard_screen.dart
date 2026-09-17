@@ -13,6 +13,7 @@ import '../../medical_history/repository/medical_history_repository.dart';
 import '../../medical_history/view/medical_history_screen.dart';
 import '../../health_management/repository/health_mission_repository.dart';
 import '../../health_management/view/health_management_screen.dart';
+import '../../reward/repository/reward_repository.dart';
 import '../../prescription/repository/patient_prescription_repository.dart';
 import '../../prescription/view/patient_prescription_list_screen.dart';
 import 'patient_result_hub_screen.dart';
@@ -536,6 +537,7 @@ class DashboardScreen extends StatelessWidget {
               MaterialPageRoute(
                 builder: (_) => HealthManagementScreen(
                   repository: PatientHealthMissionRepository(repository.client),
+                  rewardRepository: PatientRewardRepository(repository.client),
                 ),
               ),
             );
