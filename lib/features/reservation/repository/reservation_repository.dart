@@ -128,6 +128,22 @@ class ReservationRepository {
     return slots;
   }
 
+  // 연결된 본인의 기본정보에서 이름을 조회한다.
+  Future<String?> getCurrentPatientName() async {
+    final response = await client.dio.get<Map<String, dynamic>>(
+      '/api/patients/me/',
+    );
+
+    debugPrint('PATIENT_ME_RESPONSE: ${response.data}');
+    final name = response.data?['name'];
+
+    if (name is String && name.trim().isNotEmpty) {
+      return name.trim();
+    }
+
+    return null;
+  }
+
   Future<bool> hasPatientLink() async {
     final response = await client.dio.get<Map<String, dynamic>>(
       '/api/patients/me/link-status/',
@@ -242,6 +258,7 @@ class ReservationRepository {
         '/api/patient/doctors/$doctorId/',
       );
 
+      debugPrint('PATIENT_ME_RESPONSE: ${response.data}');
       final name = response.data?['name'];
 
       if (name is String && name.trim().isNotEmpty) {

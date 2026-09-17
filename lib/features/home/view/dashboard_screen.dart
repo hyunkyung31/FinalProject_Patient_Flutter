@@ -1,22 +1,27 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
-import '../widgets/bomi_greeting.dart';
+import '../../../core/theme/app_preferences.dart';
 import '../../onboarding/view/onboarding_screen.dart';
 import '../../reservation/view/reservation_list_screen.dart';
 import '../../reservation/view/reservation_screen.dart';
+import '../../reservation/model/patient_reservation.dart';
 import '../../reservation/repository/reservation_repository.dart';
 import '../../patient_services/view/patient_services_screen.dart';
 import '../../notification/view/notification_screen.dart';
 import '../../pharmacy/pharmacy_screen.dart';
 import '../../pharmacy/pharmacy_repository.dart';
-import '../../medical_history/repository/medical_history_repository.dart';
-import '../../medical_history/view/medical_history_screen.dart';
 import '../../health_management/repository/health_mission_repository.dart';
 import '../../health_management/view/health_management_screen.dart';
 import '../../reward/repository/reward_repository.dart';
+import '../../reward/view/reward_screen.dart';
 import '../../prescription/repository/patient_prescription_repository.dart';
 import '../../prescription/view/patient_prescription_list_screen.dart';
-import 'patient_result_hub_screen.dart';
+import '../../ai_result/repository/patient_ai_result_repository.dart';
+import '../../ai_result/view/patient_ai_result_list_screen.dart';
+import '../../lab_result/repository/lab_result_repository.dart';
+import '../../lab_result/view/lab_result_list_screen.dart';
+import '../../patient_report/repository/patient_report_repository.dart';
+import '../../patient_report/view/patient_report_list_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({
@@ -24,9 +29,11 @@ class DashboardScreen extends StatelessWidget {
     this.reservationRepository,
     this.onLogout,
     this.patientLinked,
+    this.patientName,
     this.onRefreshLink,
   });
   final bool? patientLinked;
+  final String? patientName;
   final Future<void> Function()? onRefreshLink;
   final Future<void> Function()? onLogout;
   final ReservationRepository? reservationRepository;
@@ -43,8 +50,27 @@ class DashboardScreen extends StatelessWidget {
     await onRefreshLink?.call();
   }
 
-  void openReservations(BuildContext context) {
-    Navigator.of(context).push<void>(
+  // 건강관리 화면 진입 로직을 홈 배너와 하단 탭에서 함께 사용한다.
+  void openHealthManagement(BuildContext context) {
+    final repository = reservationRepository;
+
+    if (patientLinked == true && repository != null) {
+      Navigator.of(context).push<void>(
+        MaterialPageRoute(
+          builder: (_) => HealthManagementScreen(
+            repository: PatientHealthMissionRepository(repository.client),
+            rewardRepository: PatientRewardRepository(repository.client),
+          ),
+        ),
+      );
+      return;
+    }
+
+    open(context, '건강관리');
+  }
+
+  Future<void> openReservations(BuildContext context) async {
+    await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) =>
             ReservationListScreen(repository: reservationRepository),
@@ -76,12 +102,20 @@ class DashboardScreen extends StatelessWidget {
     final repository = reservationRepository;
     if (patientLinked == true && repository != null) {
       final Widget? screen = switch (title) {
-        '검사결과' => PatientResultHubScreen(repository: repository),
+        '검사결과' => LabResultListScreen(
+          repository: PatientLabResultRepository(repository.client),
+        ),
+        'AI 결과' => PatientAIResultListScreen(
+          repository: PatientAIResultRepository(repository.client),
+        ),
+        '리포트' => PatientReportListScreen(
+          repository: PatientReportRepository(repository.client),
+        ),
         '처방 조회' => PatientPrescriptionListScreen(
           repository: PatientPrescriptionRepository(repository.client),
         ),
-        '진료이력' => MedicalHistoryScreen(
-          repository: MedicalHistoryRepository(repository.client),
+        '리워드' => RewardScreen(
+          repository: PatientRewardRepository(repository.client),
         ),
         _ => null,
       };
@@ -114,13 +148,27 @@ class DashboardScreen extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 patientLinked == false &&
-                        ['검사결과', '처방 조회', '진료이력', '건강관리'].contains(title)
+                        [
+                          '검사결과',
+                          'AI 결과',
+                          '리포트',
+                          '처방 조회',
+                          '리워드',
+                          '건강관리',
+                        ].contains(title)
                     ? '병원기록 연결 후 확인할 수 있어요. 조회 화면은 준비 중이에요.'
                     : '이 기능은 준비 중이에요.',
               ),
               if (patientLinked == false &&
                   reservationRepository != null &&
-                  ['검사결과', '처방 조회', '진료이력', '건강관리'].contains(title))
+                  [
+                    '검사결과',
+                    'AI 결과',
+                    '리포트',
+                    '처방 조회',
+                    '리워드',
+                    '건강관리',
+                  ].contains(title))
                 TextButton(
                   onPressed: () {
                     Navigator.pop(context);
@@ -142,287 +190,337 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: SafeArea(
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 640),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
-            children: [
-              Row(
+    // SafeArea 바깥의 상태바 영역도 Hero와 자연스럽게 이어준다.
+    backgroundColor: const Color(0xFFF8FAFC),
+    body: Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 640),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final textScale = MediaQuery.textScalerOf(context).scale(1);
+            final compact = constraints.maxHeight < 700 || textScale >= 1.5;
+
+            // 큰 글씨에서는 주요 기능을 2열로 바꿔 여유를 확보한다.
+            final menuColumns = 3;
+
+            final menuItems = <(IconData, String)>[
+              (Icons.science_outlined, '검사결과'),
+              (Icons.insights_outlined, 'AI 결과'),
+              (Icons.picture_as_pdf_outlined, '리포트'),
+              (Icons.medication_outlined, '처방 조회'),
+              (Icons.local_pharmacy_outlined, '주변 약국'),
+              (Icons.card_giftcard_rounded, '리워드'),
+            ];
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'BOMI',
-                    style: TextStyle(
-                      color: AppColors.navy,
-                      fontSize: 27,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 3,
+                  // 상단 Hero 영역은 기기 배경과 자연스럽게 이어지도록 Flutter로 그린다.
+                  Container(
+                    padding: EdgeInsets.fromLTRB(
+                      18,
+                      MediaQuery.paddingOf(context).top + 8,
+                      18,
+                      18,
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  const Expanded(
-                    child: Text(
-                      '당신 곁의 건강 파트너',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppColors.mutedText,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFFDCEBFF), Color(0xFFE9E5FF)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: '앱 사용 가이드',
-                    onPressed: () => Navigator.of(context).push<void>(
-                      MaterialPageRoute(
-                        builder: (guideContext) => OnboardingScreen(
-                          onComplete: () async =>
-                              Navigator.of(guideContext).pop(),
-                        ),
-                      ),
-                    ),
-                    icon: const Icon(
-                      Icons.help_outline_rounded,
-                      color: AppColors.navy,
-                    ),
-                  ),
-                  if (reservationRepository != null)
-                    PatientNotificationButton(
-                      repository: reservationRepository!,
-                    )
-                  else
-                    IconButton(
-                      tooltip: '알림',
-                      onPressed: () => open(context, '알림'),
-                      icon: const Icon(
-                        Icons.notifications_none_rounded,
-                        color: AppColors.navy,
-                      ),
-                    ),
-                  if (onLogout != null)
-                    IconButton(
-                      tooltip: '로그아웃',
-                      onPressed: onLogout,
-                      icon: const Icon(Icons.logout, color: AppColors.navy),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '오늘도 보미와 함께',
-                          style: TextStyle(
-                            color: AppColors.navy,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          '안녕하세요!\n반가워요',
-                          style: TextStyle(
-                            fontSize: 28,
-                            height: 1.3,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        SizedBox(height: 10),
-                        Text(
-                          '건강한 하루를 함께할게요.',
-                          style: TextStyle(
-                            color: AppColors.mutedText,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const BomiGreeting(),
-                ],
-              ),
-              const SizedBox(height: 24),
-              if (patientLinked != null && reservationRepository != null) ...[
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(
-                          patientLinked!
-                              ? '병원기록이 연결되어 있어요'
-                              : '아직 연결된 병원기록이 없어요',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          patientLinked!
-                              ? '내 정보에서 연결된 환자정보를 확인해 주세요.'
-                              : '처음 방문하셔도 아래에서 진료를 예약할 수 있어요.',
-                        ),
-                        Wrap(
-                          spacing: 8,
+                        Row(
                           children: [
-                            TextButton(
-                              onPressed: () => openService(
-                                context,
-                                patientLinked! ? 'profile' : 'link',
+                            Image.asset(
+                              'assets/images/bomi/dugn_logo.png',
+                              height: 34,
+                              fit: BoxFit.contain,
+                              alignment: Alignment.centerLeft,
+                              excludeFromSemantics: true,
+                            ),
+                            const Spacer(),
+                            const _TextScaleButton(),
+                            IconButton(
+                              tooltip: '앱 사용 가이드',
+                              onPressed: () => Navigator.of(context).push<void>(
+                                MaterialPageRoute(
+                                  builder: (guideContext) => OnboardingScreen(
+                                    onComplete: () async =>
+                                        Navigator.of(guideContext).pop(),
+                                  ),
+                                ),
                               ),
-                              child: Text(
-                                patientLinked! ? '내 환자정보' : '병원기록 연결',
+                              icon: const Icon(
+                                Icons.help_outline_rounded,
+                                color: AppColors.navy,
+                              ),
+                            ),
+                            if (reservationRepository != null)
+                              PatientNotificationButton(
+                                repository: reservationRepository!,
+                              )
+                            else
+                              IconButton(
+                                tooltip: '알림',
+                                onPressed: () => open(context, '알림'),
+                                icon: const Icon(
+                                  Icons.notifications_none_rounded,
+                                  color: AppColors.navy,
+                                ),
+                              ),
+                            if (onLogout != null)
+                              IconButton(
+                                tooltip: '로그아웃',
+                                onPressed: onLogout,
+                                icon: const Icon(
+                                  Icons.logout,
+                                  color: AppColors.navy,
+                                ),
+                              ),
+                          ],
+                        ),
+                        SizedBox(height: compact ? 12 : 18),
+
+                        // 인사말과 보미를 겹쳐 배치한다.
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Padding(
+                              padding: EdgeInsets.only(
+                                right: compact ? 105 : 140,
+                                bottom: compact ? 10 : 18,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    patientName?.trim().isNotEmpty == true
+                                        ? '안녕하세요, ${patientName!.trim()}님!'
+                                        : '안녕하세요!',
+                                    style: TextStyle(
+                                      color: AppColors.text,
+                                      fontSize: 24,
+                                      height: 1.12,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    '오늘도 보미와 건강한 하루 함께해요.',
+                                    style: TextStyle(
+                                      color: AppColors.mutedText,
+                                      fontSize: 13,
+                                      height: 1.4,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Positioned(
+                              right: 0,
+                              bottom: -58,
+                              child: SizedBox(
+                                width: compact ? 128 : 158,
+                                height: compact ? 138 : 170,
+                                child: Image.asset(
+                                  'assets/images/bomi/bomi_dashboard_hero.png',
+                                  fit: BoxFit.contain,
+                                  excludeFromSemantics: true,
+                                ),
                               ),
                             ),
                           ],
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-              Container(
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: AppColors.lightBlue,
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Wrap(
-                      spacing: 10,
-                      runSpacing: 8,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.calendar_month_rounded,
-                          size: 20,
-                          color: AppColors.navy,
-                        ),
-                        Text(
-                          '다가오는 진료',
-                          style: TextStyle(
-                            color: AppColors.navy,
-                            fontWeight: FontWeight.bold,
+                        SizedBox(height: compact ? 8 : 12),
+
+                        // 주요 기능은 하나의 흰 패널 안에 묶어서 정돈한다.
+                        Container(
+                          padding: EdgeInsets.fromLTRB(
+                            14,
+                            compact ? 13 : 16,
+                            14,
+                            compact ? 13 : 16,
                           ),
-                        ),
-                        Chip(
-                          label: Text(
-                            '예약 안내',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppColors.navy,
-                            ),
-                          ),
-                          backgroundColor: Colors.white,
-                          side: BorderSide.none,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    const Text(
-                      '예약 일정을 확인해 보세요',
-                      style: TextStyle(
-                        fontSize: 22,
-                        color: AppColors.navy,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text('예약 목록에서 진료 일정과 승인 상태를 확인할 수 있어요.'),
-                    const SizedBox(height: 12),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton.icon(
-                        onPressed: () => openReservations(context),
-                        label: const Text('예약 보기'),
-                        icon: const Icon(Icons.arrow_forward_rounded, size: 17),
-                        iconAlignment: IconAlignment.end,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 17),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                onPressed: () => Navigator.of(context).push<void>(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        ReservationScreen(repository: reservationRepository),
-                  ),
-                ),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text(
-                  '진료 예약하기',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 28),
-              const Text(
-                '어떤 도움이 필요하세요?',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 14),
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final columns =
-                      MediaQuery.textScalerOf(context).scale(14) > 22 ? 1 : 2;
-                  return Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      for (final item in const [
-                        (Icons.monitor_heart_outlined, '검사결과', '내 검사결과 확인'),
-                        (Icons.medication_outlined, '처방 조회', '복용할 약 확인'),
-                        (Icons.description_outlined, '진료이력', '지난 진료 돌아보기'),
-                        (Icons.local_pharmacy_outlined, '주변 약국', '가까운 약국 찾기'),
-                      ])
-                        SizedBox(
-                          width:
-                              (constraints.maxWidth - 12 * (columns - 1)) /
-                              columns,
-                          child: Material(
+                          decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(24),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x141E3A8A),
+                                blurRadius: 22,
+                                offset: Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              LayoutBuilder(
+                                builder: (context, menuConstraints) {
+                                  const spacing = 8.0;
+
+                                  final itemWidth =
+                                      (menuConstraints.maxWidth -
+                                          spacing * (menuColumns - 1)) /
+                                      menuColumns;
+
+                                  return Wrap(
+                                    spacing: spacing,
+                                    runSpacing: spacing,
+                                    children: [
+                                      for (final item in menuItems)
+                                        SizedBox(
+                                          width: itemWidth,
+                                          child: _DashboardMenuButton(
+                                            icon: item.$1,
+                                            label: item.$2,
+                                            onTap: () => open(context, item.$2),
+                                          ),
+                                        ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  Container(
+                    color: const Color(0xFFF8FAFC),
+                    padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (patientLinked == false &&
+                            reservationRepository != null) ...[
+                          Material(
+                            color: AppColors.softPink,
+                            borderRadius: BorderRadius.circular(14),
                             child: InkWell(
-                              borderRadius: BorderRadius.circular(18),
-                              onTap: () => open(context, item.$2),
-                              child: Padding(
-                                padding: const EdgeInsets.all(18),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                              borderRadius: BorderRadius.circular(14),
+                              onTap: () => openService(context, 'link'),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                child: Row(
                                   children: [
                                     Icon(
-                                      item.$1,
-                                      color: AppColors.blue,
-                                      size: 28,
+                                      Icons.link_rounded,
+                                      size: 20,
+                                      color: AppColors.navy,
                                     ),
-                                    const SizedBox(height: 14),
-                                    Text(
-                                      item.$2,
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700,
+                                    SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        '연결된 병원 기록이 없습니다.',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                       ),
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      item.$3,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppColors.mutedText,
+                                    Icon(
+                                      Icons.chevron_right_rounded,
+                                      color: AppColors.navy,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
+                        _UpcomingReservationCard(
+                          repository: reservationRepository,
+                          compact: compact,
+                          onOpenList: () => openReservations(context),
+                          onCreate: () => Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => ReservationScreen(
+                                repository: reservationRepository,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 14),
+
+                        // 건강관리 배너 전체를 터치 영역으로 사용한다.
+                        Semantics(
+                          button: true,
+                          label: '보미와 함께하는 더 건강한 내일. 언제나, 당신의 건강한 하루를 응원해요.',
+                          child: Material(
+                            color: Colors.transparent,
+                            borderRadius: BorderRadius.circular(20),
+                            clipBehavior: Clip.antiAlias,
+                            child: InkWell(
+                              onTap: () => openHealthManagement(context),
+                              child: SizedBox(
+                                height: compact ? 110 : 125,
+                                width: double.infinity,
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    Image.asset(
+                                      'assets/images/bomi/bomi_home_banner.png',
+                                      fit: BoxFit.cover,
+                                      alignment: Alignment.center,
+                                      excludeFromSemantics: true,
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        18,
+                                        16,
+                                        150,
+                                        14,
+                                      ),
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: const [
+                                          Text(
+                                            '보미와 함께하는',
+                                            style: TextStyle(
+                                              color: AppColors.blue,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          SizedBox(height: 2),
+                                          Text(
+                                            '더 건강한 내일',
+                                            style: TextStyle(
+                                              color: AppColors.navy,
+                                              fontSize: 20,
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
+                                          SizedBox(height: 4),
+                                          Text(
+                                            '언제나, 당신의 건강한 하루를 응원해요.',
+                                            maxLines: 2,
+                                            style: TextStyle(
+                                              color: AppColors.mutedText,
+                                              fontSize: 10,
+                                              height: 1.3,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
@@ -431,87 +529,13 @@ class DashboardScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      '최근 소식',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      ],
                     ),
-                  ),
-                  TextButton(
-                    onPressed: () => open(context, '알림 목록'),
-                    child: const Text('전체 보기'),
                   ),
                 ],
               ),
-              Material(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 8,
-                  ),
-                  leading: const CircleAvatar(
-                    backgroundColor: AppColors.lightBlue,
-                    child: Icon(
-                      Icons.event_available_rounded,
-                      color: AppColors.navy,
-                    ),
-                  ),
-                  title: const Text(
-                    '예약 소식을 확인해 보세요',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: const Text(
-                    '일정과 진료 정보를 확인해 주세요.',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  onTap: () => openReservations(context),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Material(
-                color: AppColors.softPink,
-                borderRadius: BorderRadius.circular(18),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 8,
-                  ),
-                  leading: const Icon(
-                    Icons.favorite_rounded,
-                    color: AppColors.navy,
-                  ),
-                  title: const Text(
-                    '건강이 궁금할 땐, 보미에게',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-                  ),
-                  subtitle: const Text(
-                    '건강 챗봇 만나기',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () => open(context, '건강 챗봇'),
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                '당신의 건강한 하루를 보미가 함께할게요.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11, color: AppColors.mutedText),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     ),
@@ -530,20 +554,7 @@ class DashboardScreen extends StatelessWidget {
           return;
         }
         if (index == 2) {
-          final repository = reservationRepository;
-
-          if (patientLinked == true && repository != null) {
-            Navigator.of(context).push<void>(
-              MaterialPageRoute(
-                builder: (_) => HealthManagementScreen(
-                  repository: PatientHealthMissionRepository(repository.client),
-                  rewardRepository: PatientRewardRepository(repository.client),
-                ),
-              ),
-            );
-          } else {
-            open(context, '건강관리');
-          }
+          openHealthManagement(context);
           return;
         }
 
@@ -574,4 +585,372 @@ class DashboardScreen extends StatelessWidget {
       ],
     ),
   );
+}
+
+class _TextScaleButton extends StatelessWidget {
+  const _TextScaleButton();
+
+  // 현재 크기에 따라 다음 글씨 크기로 순환한다.
+  double _nextScale(double current) {
+    if (current < 1.1) return 1.2;
+    if (current < 1.35) return 1.5;
+    return 1.0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = AppPreferences.instance;
+    final percent = (settings.textScale * 100).round();
+
+    Future<void> changeTextScale() async {
+      final nextScale = _nextScale(settings.textScale);
+
+      await settings.save(textScale: nextScale);
+
+      if (!context.mounted) return;
+
+      // 변경된 글씨 크기를 짧게 안내한다.
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            duration: const Duration(milliseconds: 900),
+            content: Text('글씨 크기 ${(nextScale * 100).round()}%'),
+          ),
+        );
+    }
+
+    return Semantics(
+      button: true,
+      label: '글씨 크기 $percent%',
+      hint: '누르면 글씨 크기가 변경됩니다.',
+      child: Tooltip(
+        message: '글씨 크기 $percent%',
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: changeTextScale,
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '가',
+                  style: TextStyle(
+                    color: AppColors.navy,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                SizedBox(width: 1),
+                Icon(Icons.zoom_in_rounded, color: AppColors.navy, size: 19),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _UpcomingReservationCard extends StatefulWidget {
+  const _UpcomingReservationCard({
+    required this.repository,
+    required this.compact,
+    required this.onOpenList,
+    required this.onCreate,
+  });
+
+  final ReservationRepository? repository;
+  final bool compact;
+  final Future<void> Function() onOpenList;
+  final Future<void> Function() onCreate;
+
+  @override
+  State<_UpcomingReservationCard> createState() =>
+      _UpcomingReservationCardState();
+}
+
+class _UpcomingReservationCardState extends State<_UpcomingReservationCard> {
+  Future<List<PatientReservation>>? _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _UpcomingReservationCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.repository != widget.repository) {
+      _load();
+    }
+  }
+
+  void _load() {
+    _future = widget.repository?.getReservations();
+  }
+
+  Future<void> _runAndReload(Future<void> Function() action) async {
+    await action();
+
+    if (!mounted) return;
+
+    setState(_load);
+  }
+
+  PatientReservation? _nextReservation(List<PatientReservation> items) {
+    final now = DateTime.now();
+
+    final upcoming = items.where((item) => !item.isPast(now)).toList()
+      ..sort((a, b) => a.reservedAt.compareTo(b.reservedAt));
+
+    return upcoming.isEmpty ? null : upcoming.first;
+  }
+
+  String _dDay(DateTime reservedAt) {
+    final nowKorea = DateTime.now().toUtc().add(const Duration(hours: 9));
+
+    final reservationKorea = reservedAt.toUtc().add(const Duration(hours: 9));
+
+    final today = DateTime(nowKorea.year, nowKorea.month, nowKorea.day);
+
+    final reservationDay = DateTime(
+      reservationKorea.year,
+      reservationKorea.month,
+      reservationKorea.day,
+    );
+
+    final days = reservationDay.difference(today).inDays;
+
+    return days <= 0 ? 'D-DAY' : 'D-$days';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final future = _future;
+
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFE8F5FF), Color(0xFFF5FAFF)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => _runAndReload(widget.onOpenList),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: widget.compact ? 10 : 12,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.calendar_month_rounded,
+                    color: AppColors.blue,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: future == null
+                      ? const _ReservationSummary(subtitle: '예약 정보를 확인할 수 없어요.')
+                      : FutureBuilder<List<PatientReservation>>(
+                          future: future,
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState !=
+                                ConnectionState.done) {
+                              return const _ReservationSummary(
+                                subtitle: '예약 정보를 확인하고 있어요.',
+                              );
+                            }
+
+                            if (snapshot.hasError) {
+                              return const _ReservationSummary(
+                                subtitle: '예약 정보를 불러오지 못했어요.',
+                              );
+                            }
+
+                            final reservation = _nextReservation(
+                              snapshot.data ?? const [],
+                            );
+
+                            if (reservation == null) {
+                              return const _ReservationSummary(
+                                subtitle: '예정된 진료가 없어요.',
+                              );
+                            }
+
+                            return Row(
+                              children: [
+                                Expanded(
+                                  child: _ReservationSummary(
+                                    subtitle: reservation.dateLabel,
+                                    status: reservation.statusLabel,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    _dDay(reservation.reservedAt),
+                                    style: const TextStyle(
+                                      color: AppColors.navy,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  tooltip: '새 진료 예약',
+                  onPressed: () => _runAndReload(widget.onCreate),
+                  icon: const Icon(
+                    Icons.add_circle_rounded,
+                    color: AppColors.blue,
+                    size: 30,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReservationSummary extends StatelessWidget {
+  const _ReservationSummary({required this.subtitle, this.status});
+
+  final String subtitle;
+  final String? status;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text(
+          '다가오는 진료',
+          style: TextStyle(
+            color: AppColors.navy,
+            fontSize: 15,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          subtitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: AppColors.text,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        if (status != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            status!,
+            style: const TextStyle(color: AppColors.mutedText, fontSize: 11),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _DashboardMenuButton extends StatelessWidget {
+  const _DashboardMenuButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  Color get _accent => switch (label) {
+    'AI 결과' => const Color(0xFFE76587),
+    '처방 조회' => const Color(0xFF6557D9),
+    '주변 약국' => const Color(0xFFD94F86),
+    '리워드' => const Color(0xFFF39A3C),
+    _ => AppColors.blue,
+  };
+
+  Color get _soft => switch (label) {
+    'AI 결과' => const Color(0xFFFFEFF4),
+    '처방 조회' => const Color(0xFFF2F0FF),
+    '주변 약국' => const Color(0xFFFFEFF5),
+    '리워드' => const Color(0xFFFFF5E8),
+    _ => const Color(0xFFEDF6FF),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    // 큰 흰 패널 안에서는 별도 카드 없이 아이콘과 이름만 표시한다.
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 11),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(color: _soft, shape: BoxShape.circle),
+                child: Icon(icon, size: 23, color: _accent),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 13,
+                  height: 1.2,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -30,6 +30,7 @@ class _SessionGateState extends State<SessionGate> {
       AuthRepository(apiClient: _client, tokenStorage: TokenStorage());
   _SessionPage _page = _SessionPage.loading;
   bool _authenticated = false;
+  String? _patientName;
   String _error = '';
   bool _logoutBusy = false;
   bool _retryLogout = false;
@@ -37,8 +38,7 @@ class _SessionGateState extends State<SessionGate> {
   Future<void> _openChatbot() async {
     if (!mounted ||
         !_authenticated ||
-        (_page != _SessionPage.linked &&
-            _page != _SessionPage.unlinked)) {
+        (_page != _SessionPage.linked && _page != _SessionPage.unlinked)) {
       return;
     }
 
@@ -113,13 +113,27 @@ class _SessionGateState extends State<SessionGate> {
         return;
       }
       final linked = await _repository.hasPatientLink();
+
+      String? patientName;
+
+      // 병원 기록이 연결된 경우에만 본인 환자정보에서 이름을 읽는다.
+      if (linked) {
+        try {
+          patientName = await _reservationRepository.getCurrentPatientName();
+        } catch (_) {
+          // 이름 조회 실패가 로그인 자체를 막지는 않는다.
+          patientName = null;
+        }
+      }
+
       if (!mounted) return;
-      setState(
-        () => _page = linked ? _SessionPage.linked : _SessionPage.unlinked,
-      );
+
+      setState(() {
+        _patientName = patientName;
+        _page = linked ? _SessionPage.linked : _SessionPage.unlinked;
+      });
 
       ChatbotOverlayController.instance.activate(_openChatbot);
-
     } on DioException catch (error) {
       if (!mounted) return;
       if (error.response?.statusCode == 401) {
@@ -174,6 +188,7 @@ class _SessionGateState extends State<SessionGate> {
       case _SessionPage.linked:
         return DashboardScreen(
           patientLinked: _page == _SessionPage.linked,
+          patientName: _patientName,
           onRefreshLink: _load,
           reservationRepository: _reservationRepository,
           onLogout: _confirmLogout,
