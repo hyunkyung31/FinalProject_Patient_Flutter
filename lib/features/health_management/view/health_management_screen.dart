@@ -1,8 +1,10 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../model/health_mission.dart';
 import '../repository/health_mission_repository.dart';
+import '../../reward/repository/reward_repository.dart';
+import '../../reward/view/reward_screen.dart';
 import 'health_mission_detail_screen.dart';
 
 class HealthManagementScreen extends StatefulWidget {
@@ -11,11 +13,13 @@ class HealthManagementScreen extends StatefulWidget {
     required this.repository,
     this.checkInScreenBuilder,
     this.conceptSection,
+    this.rewardRepository,
   });
 
   final HealthMissionRepository repository;
   final WidgetBuilder? checkInScreenBuilder;
   final Widget? conceptSection;
+  final RewardRepository? rewardRepository;
 
   @override
   State<HealthManagementScreen> createState() => _HealthManagementScreenState();
@@ -72,6 +76,16 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
     }
   }
 
+  void _openRewards() {
+    final repository = widget.rewardRepository;
+
+    if (repository == null) return;
+
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => RewardScreen(repository: repository)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final completedCount = _missions.where((item) => item.isCompleted).length;
@@ -115,6 +129,10 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
               ),
               const SizedBox(height: 24),
             ],
+            if (widget.rewardRepository != null) ...[
+              _RewardEntryCard(onTap: _openRewards),
+              const SizedBox(height: 24),
+            ],
             const Text(
               '오늘의 실천',
               style: TextStyle(
@@ -150,6 +168,80 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _RewardEntryCard extends StatelessWidget {
+  const _RewardEntryCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFE7EBF1)),
+          ),
+          child: const Row(
+            children: [
+              _RewardEntryIcon(),
+              SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '두근 리워드',
+                      style: TextStyle(
+                        color: AppColors.navy,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 5),
+                    Text(
+                      '건강 활동으로 모은 포인트와 리워드를 확인해요.',
+                      style: TextStyle(
+                        color: AppColors.mutedText,
+                        fontSize: 13,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: 10),
+              Icon(Icons.chevron_right_rounded, color: AppColors.mutedText),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RewardEntryIcon extends StatelessWidget {
+  const _RewardEntryIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 50,
+      height: 50,
+      decoration: BoxDecoration(
+        color: Color(0xFFF1F6FD),
+        borderRadius: BorderRadius.all(Radius.circular(16)),
+      ),
+      child: Icon(Icons.card_giftcard_rounded, color: AppColors.navy),
     );
   }
 }
