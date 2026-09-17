@@ -7,6 +7,7 @@ import '../model/lab_education_info.dart';
 import '../model/lab_result.dart';
 import '../repository/lab_result_repository.dart';
 import 'lab_chatbot_navigation.dart';
+import 'lab_result_overall_trend_screen.dart';
 import 'lab_result_trend_screen.dart';
 
 class LabResultDetailScreen extends StatefulWidget {
@@ -130,6 +131,27 @@ class _DetailContent extends StatelessWidget {
   final LabResultDetailRepository? repository;
   final ChatbotRepository? chatbotRepository;
 
+  void _openOverallTrend(
+    BuildContext context,
+    List<LabMeasurement> measurements,
+  ) {
+    final currentRepository = repository;
+
+    if (currentRepository == null || measurements.isEmpty) {
+      return;
+    }
+
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => LabResultOverallTrendScreen(
+          repository: currentRepository,
+          measurements: measurements,
+          chatbotRepository: chatbotRepository,
+        ),
+      ),
+    );
+  }
+
   Future<void> _askAboutWholeResult(BuildContext context) async {
     final chatbot = chatbotRepository;
     if (chatbot == null) {
@@ -151,6 +173,21 @@ class _DetailContent extends StatelessWidget {
         (a, b) =>
             labDisplayPriority(a.code).compareTo(labDisplayPriority(b.code)),
       );
+
+    final normalCount = measurements
+        .where((item) => item.normalizedFlag == 'NORMAL')
+        .length;
+
+    final attentionCount = measurements
+        .where(
+          (item) =>
+              item.normalizedFlag == 'HIGH' || item.normalizedFlag == 'LOW',
+        )
+        .length;
+
+    final normalRatio = measurements.isEmpty
+        ? 0.0
+        : normalCount / measurements.length;
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -231,15 +268,73 @@ class _DetailContent extends StatelessWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _OverviewStat(
+                        label: '정상 범위',
+                        value: normalCount,
+                        background: const Color(0xFFE9F7EF),
+                        foreground: const Color(0xFF067647),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _OverviewStat(
+                        label: '정상 범위 외',
+                        value: attentionCount,
+                        background: const Color(0xFFFFF1ED),
+                        foreground: const Color(0xFFB42318),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(999),
+                  child: LinearProgressIndicator(
+                    value: normalRatio,
+                    minHeight: 8,
+                    backgroundColor: const Color(0xFFE9EDF2),
+                    color: const Color(0xFF55B87A),
+                  ),
+                ),
                 const SizedBox(height: 12),
                 Text(
                   _overviewText(measurements),
-                  style: const TextStyle(height: 1.6, color: AppColors.text),
+                  style: const TextStyle(height: 1.55, color: AppColors.text),
                 ),
               ],
             ),
           ),
         ),
+
+        if (repository != null && measurements.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => _openOverallTrend(context, measurements),
+              icon: const Icon(Icons.monitor_heart_outlined),
+              label: const Text(
+                '\uC804\uCCB4 \uC218\uCE58 \uCD94\uC774 \uBCF4\uAE30',
+              ),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(50),
+                foregroundColor: AppColors.navy,
+                side: const BorderSide(color: Color(0xFFB8C9E5)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+        ],
 
         if (chatbotRepository != null) ...[
           const SizedBox(height: 14),
@@ -288,6 +383,54 @@ class _DetailContent extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _OverviewStat extends StatelessWidget {
+  const _OverviewStat({
+    required this.label,
+    required this.value,
+    required this.background,
+    required this.foreground,
+  });
+
+  final String label;
+  final int value;
+  final Color background;
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Text(
+            '$value',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              color: foreground,
+            ),
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: foreground,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -344,40 +487,6 @@ class _MeasurementCardState extends State<_MeasurementCard> {
     );
   }
 
-  Future<void> _askBomi(BuildContext context) async {
-    final chatbot = chatbotRepository;
-    if (chatbot == null) {
-      return;
-    }
-
-    final info = labDisplayInfo(
-      code: measurement.code,
-      fallbackName: measurement.name,
-    );
-
-    final unit = measurement.displayUnit;
-    final value = unit.isEmpty
-        ? measurement.displayValue
-        : '${measurement.displayValue} $unit';
-
-    final reference = measurement.displayReference;
-    final referenceWithUnit = reference == '-' || unit.isEmpty
-        ? reference
-        : '$reference $unit';
-
-    final referenceSentence = reference == '-'
-        ? ''
-        : ' 정상범위는 $referenceWithUnit이야.';
-
-    await openLabChatbot(
-      context: context,
-      repository: chatbot,
-      message:
-          '${info.koreanName}(${info.code}) $value 결과를 쉽게 설명해줘.'
-          '$referenceSentence',
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final info = labDisplayInfo(
@@ -395,140 +504,138 @@ class _MeasurementCardState extends State<_MeasurementCard> {
     final canShowTrend =
         repository != null && measurement.code.trim().isNotEmpty;
 
-    final canAskBomi = chatbotRepository != null;
-
     return Card(
       margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              info.koreanName,
-                              style: const TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: AppColors.text,
-                              ),
-                            ),
-                          ),
-                          if (education != null) ...[
-                            const SizedBox(width: 3),
-                            SizedBox(
-                              width: 34,
-                              height: 34,
-                              child: IconButton(
-                                padding: EdgeInsets.zero,
-                                tooltip: '${info.koreanName} 설명 보기',
-                                onPressed: () {
-                                  setState(() {
-                                    _showEducation = !_showEducation;
-                                  });
-                                },
-                                icon: Icon(
-                                  _showEducation
-                                      ? Icons.cancel_outlined
-                                      : Icons.error_outline_rounded,
-                                  size: 18,
-                                  color: const Color(0xFF718096),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: canShowTrend ? () => _openTrend(context) : null,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                info.koreanName,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.text,
                                 ),
                               ),
                             ),
+                            if (education != null) ...[
+                              const SizedBox(width: 3),
+                              SizedBox(
+                                width: 34,
+                                height: 34,
+                                child: IconButton(
+                                  padding: EdgeInsets.zero,
+                                  tooltip: '${info.koreanName} 설명 보기',
+                                  onPressed: () {
+                                    setState(() {
+                                      _showEducation = !_showEducation;
+                                    });
+                                  },
+                                  icon: Icon(
+                                    _showEducation
+                                        ? Icons.cancel_outlined
+                                        : Icons.error_outline_rounded,
+                                    size: 18,
+                                    color: const Color(0xFF718096),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ],
-                        ],
-                      ),
-                      if (info.subtitle.isNotEmpty) ...[
-                        const SizedBox(height: 3),
-                        Text(
-                          info.subtitle,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: AppColors.mutedText,
+                        ),
+                        if (info.subtitle.isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            info.subtitle,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.mutedText,
+                            ),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                _AbnormalBadge(flag: measurement.normalizedFlag),
-              ],
-            ),
-
-            if (_showEducation && education != null) ...[
-              const SizedBox(height: 10),
-              _LabEducationBubble(info: education),
-            ],
-
-            const SizedBox(height: 14),
-
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: AppColors.navy,
-              ),
-            ),
-
-            const SizedBox(height: 12),
-            const Divider(height: 1),
-            const SizedBox(height: 11),
-
-            _InfoRow(label: '정상범위', value: measurement.displayReference),
-
-            if (measurement.measuredAt != null) ...[
-              const SizedBox(height: 8),
-              _InfoRow(
-                label: '측정일시',
-                value: _dateTimeText(measurement.measuredAt!),
-              ),
-            ],
-
-            if (canShowTrend || canAskBomi) ...[
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  if (canShowTrend)
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _openTrend(context),
-                        icon: const Icon(Icons.show_chart_rounded),
-                        label: const Text('추이 보기'),
-                      ),
-                    ),
-                  if (canShowTrend && canAskBomi) const SizedBox(width: 8),
-                  if (canAskBomi)
-                    Expanded(
-                      child: FilledButton.icon(
-                        style: _bomiButtonStyle(compact: true),
-                        onPressed: () => _askBomi(context),
-                        icon: const Icon(
-                          Icons.chat_bubble_outline_rounded,
-                          size: 16,
-                        ),
-                        label: const FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Text('보미에게 물어보기', maxLines: 1),
-                        ),
-                      ),
-                    ),
+                  const SizedBox(width: 10),
+                  _AbnormalBadge(flag: measurement.normalizedFlag),
                 ],
               ),
+
+              if (_showEducation && education != null) ...[
+                const SizedBox(height: 10),
+                _LabEducationBubble(info: education),
+              ],
+
+              const SizedBox(height: 14),
+
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.navy,
+                ),
+              ),
+
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 11),
+
+              _InfoRow(label: '정상범위', value: measurement.displayReference),
+
+              if (measurement.measuredAt != null) ...[
+                const SizedBox(height: 8),
+                _InfoRow(
+                  label: '측정일시',
+                  value: _dateTimeText(measurement.measuredAt!),
+                ),
+              ],
+
+              if (canShowTrend) ...[
+                const SizedBox(height: 14),
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.show_chart_rounded,
+                      size: 18,
+                      color: AppColors.blue,
+                    ),
+                    SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        '카드를 눌러 수치 추이 확인',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.blue,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppColors.mutedText,
+                    ),
+                  ],
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -770,17 +877,17 @@ class _AbnormalBadge extends StatelessWidget {
 
     switch (flag) {
       case 'HIGH':
-        label = '높음 HIGH';
+        label = '정상 범위 외';
         foreground = const Color(0xFFB42318);
         background = const Color(0xFFFFE9E7);
         break;
       case 'LOW':
-        label = '낮음 LOW';
+        label = '정상 범위 외';
         foreground = const Color(0xFF175CD3);
         background = const Color(0xFFEAF2FF);
         break;
       case 'NORMAL':
-        label = '정상';
+        label = '정상 범위';
         foreground = const Color(0xFF067647);
         background = const Color(0xFFE9F7EF);
         break;

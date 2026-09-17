@@ -273,7 +273,7 @@ class _TrendContent extends StatelessWidget {
                     const SizedBox(width: 5),
                     Expanded(
                       child: Text(
-                        '정상범위 $rangeLabel',
+                        '정상 범위 $rangeLabel',
                         style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.mutedText,
@@ -507,17 +507,17 @@ class _TrendFlagBadge extends StatelessWidget {
 
     switch (flag) {
       case 'HIGH':
-        label = '높음';
+        label = '정상 범위 외';
         foreground = const Color(0xFFB42318);
         background = const Color(0xFFFFE9E7);
         break;
       case 'LOW':
-        label = '낮음';
+        label = '정상 범위 외';
         foreground = const Color(0xFF175CD3);
         background = const Color(0xFFEAF2FF);
         break;
       case 'NORMAL':
-        label = '정상';
+        label = '정상 범위';
         foreground = const Color(0xFF067647);
         background = const Color(0xFFE9F7EF);
         break;
@@ -660,6 +660,10 @@ class _TrendChartPainter extends CustomPainter {
       canvas.drawLine(Offset(left, y), Offset(left + plotWidth, y), gridPaint);
     }
 
+    final rangePaint = Paint()
+      ..color = const Color(0x1834A853)
+      ..style = PaintingStyle.fill;
+
     if (referenceMin != null && referenceMax != null) {
       final upperY = yFor(referenceMax!);
       final lowerY = yFor(referenceMin!);
@@ -671,17 +675,21 @@ class _TrendChartPainter extends CustomPainter {
           left + plotWidth,
           math.max(upperY, lowerY),
         ),
-        Paint()..color = const Color(0x1834A853),
+        rangePaint,
       );
-    } else if (referenceMin != null || referenceMax != null) {
-      final referenceValue = referenceMin ?? referenceMax!;
+    } else if (referenceMax != null) {
+      final upperY = yFor(referenceMax!);
 
-      canvas.drawLine(
-        Offset(left, yFor(referenceValue)),
-        Offset(left + plotWidth, yFor(referenceValue)),
-        Paint()
-          ..color = const Color(0xFF6EBB83)
-          ..strokeWidth = 1.5,
+      canvas.drawRect(
+        Rect.fromLTRB(left, upperY, left + plotWidth, top + plotHeight),
+        rangePaint,
+      );
+    } else if (referenceMin != null) {
+      final lowerY = yFor(referenceMin!);
+
+      canvas.drawRect(
+        Rect.fromLTRB(left, top, left + plotWidth, lowerY),
+        rangePaint,
       );
     }
 
