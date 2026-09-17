@@ -53,15 +53,23 @@ class _PatientReservationDetailScreenState
     if (state == AppLifecycleState.resumed && mounted && !_busy) _reload();
   }
 
-  void _questionnaire() {
-    Navigator.of(context).push<void>(
+  Future<void> _questionnaire() async {
+    final submitted = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => QuestionnaireScreen(
           reservationId: widget.id,
           repository: widget.repository,
+          onSubmitted: widget.openQuestionnaire
+              ? () => Navigator.of(context).pop(true)
+              : null,
         ),
       ),
     );
+    if (!mounted || submitted != true) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('문진표 제출이 완료됐어요.')));
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   Future<void> _change(PatientReservation item) async {
