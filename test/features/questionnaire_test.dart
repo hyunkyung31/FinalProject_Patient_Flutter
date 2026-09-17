@@ -333,4 +333,37 @@ void main() {
     expect(find.text('증상 기록'), findsOneWidget);
     expect(find.text('아니요'), findsOneWidget);
   });
+
+  testWidgets('문진 제출은 예약 완료 경로에 완료 신호를 전달한다', (tester) async {
+    var submitted = false;
+    adapter.customQuestions = [
+      {
+        'id': 1,
+        'question_text': '증상 기록',
+        'question_type': 'TEXT',
+        'is_required': true,
+        'step': 1,
+        'display_order': 1,
+      },
+    ];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: QuestionnaireScreen(
+          reservationId: 8,
+          repository: ReservationRepository(client),
+          onSubmitted: () => submitted = true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextFormField), '증상 기록');
+    await tester.ensureVisible(find.text('최종 제출'));
+    await tester.tap(find.text('최종 제출'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('제출'));
+    await tester.pumpAndSettle();
+
+    expect(submitted, isTrue);
+  });
 }
