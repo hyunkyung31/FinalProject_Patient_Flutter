@@ -11,6 +11,8 @@ import '../../pharmacy/pharmacy_screen.dart';
 import '../../pharmacy/pharmacy_repository.dart';
 import '../../medical_history/repository/medical_history_repository.dart';
 import '../../medical_history/view/medical_history_screen.dart';
+import '../../health_management/repository/health_mission_repository.dart';
+import '../../health_management/view/health_management_screen.dart';
 import '../../prescription/repository/patient_prescription_repository.dart';
 import '../../prescription/view/patient_prescription_list_screen.dart';
 import 'patient_result_hub_screen.dart';
@@ -111,13 +113,13 @@ class DashboardScreen extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 patientLinked == false &&
-                        ['검사결과', '처방 조회', '진료이력'].contains(title)
+                        ['검사결과', '처방 조회', '진료이력', '건강관리'].contains(title)
                     ? '병원기록 연결 후 확인할 수 있어요. 조회 화면은 준비 중이에요.'
                     : '이 기능은 준비 중이에요.',
               ),
               if (patientLinked == false &&
                   reservationRepository != null &&
-                  ['검사결과', '처방 조회', '진료이력'].contains(title))
+                  ['검사결과', '처방 조회', '진료이력', '건강관리'].contains(title))
                 TextButton(
                   onPressed: () {
                     Navigator.pop(context);
@@ -526,6 +528,23 @@ class DashboardScreen extends StatelessWidget {
           );
           return;
         }
+        if (index == 2) {
+          final repository = reservationRepository;
+
+          if (patientLinked == true && repository != null) {
+            Navigator.of(context).push<void>(
+              MaterialPageRoute(
+                builder: (_) => HealthManagementScreen(
+                  repository: PatientHealthMissionRepository(repository.client),
+                ),
+              ),
+            );
+          } else {
+            open(context, '건강관리');
+          }
+          return;
+        }
+
         if (index == 3 && reservationRepository != null) {
           openService(context, 'menu');
           return;
