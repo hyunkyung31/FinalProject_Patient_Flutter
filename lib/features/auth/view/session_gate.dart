@@ -222,7 +222,9 @@ class _SessionGateState extends State<SessionGate> {
       // 병원 기록이 연결된 경우에만 본인 환자정보에서 이름을 읽는다.
       if (linked) {
         try {
-          patientName = await _reservationRepository.getCurrentPatientName();
+          final applicant = await _reservationRepository
+              .getReservationApplicant();
+          patientName = applicant.name;
         } catch (_) {
           // 이름 조회 실패가 로그인 자체를 막지는 않는다.
           patientName = null;
