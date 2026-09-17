@@ -107,26 +107,80 @@ class _LabResultListScreenState extends State<LabResultListScreen> {
                   onRefresh: _reload,
                   child: ListView.separated(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-                    itemCount: results.length,
+                    padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+                    itemCount: results.length + 1,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
-                      final result = results[index];
+                      if (index == 0) {
+                        return Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFDCEBFF), Color(0xFFE9E5FF)],
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Row(
+                            children: [
+                              Icon(
+                                Icons.fact_check_outlined,
+                                color: AppColors.navy,
+                              ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '최근 검사 결과를 확인해보세요',
+                                      style: TextStyle(
+                                        fontSize: 17,
+                                        fontWeight: FontWeight.w800,
+                                        color: AppColors.text,
+                                      ),
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      '검사 결과는 날짜별로 확인할 수 있어요.',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        height: 1.4,
+                                        color: AppColors.mutedText,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      final result = results[index - 1];
 
                       return Card(
                         margin: EdgeInsets.zero,
+                        elevation: 0,
+                        color: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          side: const BorderSide(color: Color(0xFFE4E9F0)),
+                        ),
                         clipBehavior: Clip.antiAlias,
                         child: InkWell(
                           onTap: () => _openDetail(result),
                           child: Padding(
-                            padding: const EdgeInsets.all(18),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 16,
+                            ),
                             child: Row(
                               children: [
                                 Container(
                                   width: 46,
                                   height: 46,
                                   decoration: const BoxDecoration(
-                                    color: AppColors.lightBlue,
+                                    color: Color(0xFFF0F6FF),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
@@ -160,12 +214,22 @@ class _LabResultListScreenState extends State<LabResultListScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                Text(
-                                  _statusLabel(result.status),
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.blue,
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEAF2FF),
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                  child: Text(
+                                    _statusLabel(result.status),
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.blue,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 4),
@@ -276,7 +340,7 @@ class _ErrorView extends StatelessWidget {
 
 String _statusLabel(String status) {
   return switch (status.toUpperCase()) {
-    'FINAL' => '최종',
+    'FINAL' => '확정',
     'CORRECTED' => '수정됨',
     'DRAFT' => '작성 중',
     _ => status,
