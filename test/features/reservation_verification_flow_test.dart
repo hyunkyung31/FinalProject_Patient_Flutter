@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_patient/core/network/api_client.dart';
 import 'package:flutter_patient/features/reservation/model/booking_options.dart';
+import 'package:flutter_patient/features/reservation/model/reservation_applicant.dart';
 import 'package:flutter_patient/features/reservation/repository/reservation_repository.dart';
 import 'package:flutter_patient/features/reservation/view/booking_form.dart';
 import 'package:flutter_patient/features/reservation/view/reservation_screen.dart';
@@ -16,6 +17,14 @@ class FakeRepository extends ReservationRepository {
   Future<bool> hasPatientLink() async => linked;
   @override
   Future<BookingVerification?> getVerification() async => verification;
+  @override
+  Future<ReservationApplicant> getReservationApplicant() async =>
+      const ReservationApplicant(
+        name: '테스트환자',
+        birthDate: '1995-04-20',
+        contact: '01012345678',
+      );
+
   @override
   Future<List<DepartmentOption>> getDepartments() async {
     departmentLoads++;
@@ -92,6 +101,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(PhoneVerificationScreen), findsNothing);
     expect(find.byType(BookingForm), findsOneWidget);
+    expect(find.text('등록 환자 정보'), findsOneWidget);
+    expect(find.text('테스트환자'), findsOneWidget);
+    expect(find.text('1995.04.20'), findsOneWidget);
+    expect(find.text('01012345678'), findsOneWidget);
+    expect(find.byType(TextFormField), findsNothing);
   });
 
   testWidgets('병원기록 연결 환자는 기존대로 예약 폼을 연다', (tester) async {

@@ -3,6 +3,7 @@ import '../../../core/network/api_client.dart';
 import '../model/patient_reservation.dart';
 import '../model/reservation_change_request.dart';
 import '../model/booking_options.dart';
+import '../model/reservation_applicant.dart';
 import 'package:flutter/foundation.dart';
 
 class ReservationRepository {
@@ -151,6 +152,19 @@ class ReservationRepository {
     final linked = response.data?['linked'];
     if (linked is! bool) throw const FormatException('연결 상태를 확인할 수 없습니다.');
     return linked;
+  }
+
+  /// 서버가 병원 기록 연결 환자는 연결된 환자 정보를, 신규 환자는 계정
+  /// 정보를 우선해 반환합니다.
+  Future<ReservationApplicant> getReservationApplicant() async {
+    final response = await client.dio.get<Map<String, dynamic>>(
+      '/api/patients/me/',
+    );
+    final data = response.data;
+    if (data == null) {
+      throw const FormatException('예약에 필요한 환자 정보를 확인하지 못했어요.');
+    }
+    return ReservationApplicant.fromJson(data);
   }
 
   Future<BookingVerification?> getVerification() async {

@@ -33,8 +33,22 @@ class ReservationAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     requests.add(options);
+    if (options.path == '/api/patients/me/') {
+      return ResponseBody.fromString(
+        jsonEncode({
+          'name': '테스트환자',
+          'birth_date': '1995-04-20',
+          'contact': '01012345678',
+        }),
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
+    }
     final cancel = options.path.endsWith('/cancel/');
-    final list = options.path == ReservationRepository.path;
+    final list =
+        options.path == ReservationRepository.path && options.method == 'GET';
     if ((cancel && failCancel) || (list && failList)) {
       return ResponseBody.fromString(
         '{}',
@@ -72,6 +86,39 @@ void main() {
     repository = ReservationRepository(client);
   });
   tearDown(() => client.dispose());
+
+  test('예약 신청자 정보는 본인정보 API의 값을 사용한다', () async {
+    final applicant = await repository.getReservationApplicant();
+
+    expect(applicant.name, '테스트환자');
+    expect(applicant.birthDate, '1995-04-20');
+    expect(applicant.contact, '01012345678');
+    expect(adapter.requests.single.path, '/api/patients/me/');
+    expect(
+      adapter.requests.single.headers['Authorization'],
+      'Bearer fake-patient-access',
+    );
+  });
+
+  test('예약 생성은 전달받은 자동 입력 값을 변경하지 않는다', () async {
+    await repository.createReservation(
+      doctorId: 3,
+      reservedAt: DateTime.utc(2099, 9, 15, 1, 30),
+      name: '테스트환자',
+      birthDate: '1995-04-20',
+      contact: '01012345678',
+      verificationId: 7,
+    );
+
+    expect(adapter.requests.single.data, {
+      'doctor_id': 3,
+      'reserved_at': '2099-09-15T01:30:00.000Z',
+      'applicant_name': '테스트환자',
+      'applicant_birth_date': '1995-04-20',
+      'applicant_contact': '01012345678',
+      'verification_id': 7,
+    });
+  });
 
   testWidgets('서버에서 승인된 변경 시간은 목록 자동 갱신에 반영된다', (tester) async {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);

@@ -7,9 +7,11 @@ class QuestionnaireScreen extends StatefulWidget {
     super.key,
     required this.reservationId,
     required this.repository,
+    this.onSubmitted,
   });
   final int reservationId;
   final ReservationRepository repository;
+  final VoidCallback? onSubmitted;
   @override
   State<QuestionnaireScreen> createState() => _QuestionnaireScreenState();
 }
@@ -96,6 +98,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
                 entry: Map<String, dynamic>.from(entry),
                 repository: widget.repository,
                 reservationId: widget.reservationId,
+                onSubmitted: widget.onSubmitted,
               ),
           ],
         );
@@ -110,10 +113,12 @@ class _QuestionnaireForm extends StatefulWidget {
     required this.entry,
     required this.repository,
     required this.reservationId,
+    this.onSubmitted,
   });
   final Map<String, dynamic> entry;
   final ReservationRepository repository;
   final int reservationId;
+  final VoidCallback? onSubmitted;
   @override
   State<_QuestionnaireForm> createState() => _QuestionnaireFormState();
 }
@@ -351,6 +356,7 @@ class _QuestionnaireFormState extends State<_QuestionnaireForm> {
           status = 'SUBMITTED';
           message = '문진표를 제출했어요.';
         });
+        widget.onSubmitted?.call();
       } else {
         setState(() {
           message = '임시 저장했어요. 이 화면에서는 계속 작성할 수 있어요.';
