@@ -6,6 +6,10 @@ import '../repository/health_mission_repository.dart';
 import '../../reward/repository/reward_repository.dart';
 import '../../reward/view/reward_screen.dart';
 import 'health_mission_detail_screen.dart';
+import 'health_checkin_screen.dart';
+import 'health_activity_section.dart';
+import 'health_quiz_screen.dart';
+import 'health_walk_screen.dart';
 
 class HealthManagementScreen extends StatefulWidget {
   const HealthManagementScreen({
@@ -29,6 +33,7 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
   List<PatientHealthMission> _missions = const [];
   bool _loading = true;
   String? _error;
+  int? _pointBalance;
 
   @override
   void initState() {
@@ -51,6 +56,8 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
         _missions = missions;
         _loading = false;
       });
+
+      await _refreshPointBalance();
     } catch (error) {
       if (!mounted) return;
 
@@ -59,6 +66,113 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
         _error = healthMissionErrorMessage(error);
       });
     }
+  }
+
+  // 오늘의 DAILY_CHECKIN 미션을 찾아 체크인 화면과 실제 보상 API를 연결한다.
+  // 리워드 조회 실패가 건강 미션 화면 전체 실패로 이어지지 않게 분리한다.
+  Future<void> _refreshPointBalance() async {
+    final repository = widget.rewardRepository;
+
+    if (repository == null) {
+      if (!mounted) return;
+
+      setState(() {
+        _pointBalance = null;
+      });
+      return;
+    }
+
+    try {
+      final account = await repository.getPointAccount();
+
+      if (!mounted) return;
+
+      setState(() {
+        _pointBalance = account.balance;
+      });
+    } catch (_) {
+      if (!mounted) return;
+
+      setState(() {
+        _pointBalance = null;
+      });
+    }
+  }
+
+  Future<void> _openCheckIn() async {
+    PatientHealthMission? checkInMission;
+
+    for (final mission in _missions) {
+      if (mission.healthMission.code.trim().toUpperCase() == 'DAILY_CHECKIN') {
+        checkInMission = mission;
+        break;
+      }
+    }
+
+    if (checkInMission == null) {
+      final previewBuilder = widget.checkInScreenBuilder;
+
+      if (previewBuilder != null) {
+        await Navigator.of(
+          context,
+        ).push<void>(MaterialPageRoute(builder: previewBuilder));
+        return;
+      }
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('오늘의 체크인 미션을 준비 중이에요.')));
+      return;
+    }
+
+    if (checkInMission.isCompleted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('오늘 체크인은 이미 완료했어요.')));
+      return;
+    }
+
+    final checkInResult = await Navigator.of(context).push<HealthCheckInResult>(
+      MaterialPageRoute(
+        builder: (_) => HealthCheckInScreen(
+          repository: widget.repository,
+          mission: checkInMission!,
+        ),
+      ),
+    );
+
+    if (checkInResult == null || !mounted) return;
+
+    // 체크인 완료 후 미션과 실제 서버 포인트 잔액을 다시 조회한다.
+    await _load();
+
+    if (!mounted) return;
+
+    if (checkInResult.alreadyCompleted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('오늘 체크인은 이미 처리됐어요.')));
+      return;
+    }
+
+    final awardedPoints = checkInResult.awardedPoints;
+
+    if (awardedPoints == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('체크인은 완료됐지만 새로 적립된 포인트 내역은 확인되지 않았어요.')),
+      );
+      return;
+    }
+
+    final pointText = awardedPoints == awardedPoints.roundToDouble()
+        ? awardedPoints.toInt().toString()
+        : awardedPoints.toStringAsFixed(1);
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('체크인 완료! +${pointText}P가 적립됐어요.')));
   }
 
   Future<void> _openMission(PatientHealthMission mission) async {
@@ -76,21 +190,84 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
     }
   }
 
-  void _openRewards() {
+  // Health Connect 기반 걸음 수 화면으로 이동한다.
+  void _openWalk() {
+    Navigator.of(
+      context,
+    ).push<void>(MaterialPageRoute(builder: (_) => const HealthWalkScreen()));
+  }
+
+  // 오늘 배정된 DAILY_QUIZ 미션과 실제 퀴즈 API를 연결한다.
+  Future<void> _openQuiz() async {
+    PatientHealthMission? quizMission;
+
+    for (final mission in _missions) {
+      if (mission.healthMission.code.trim().toUpperCase() == 'DAILY_QUIZ') {
+        quizMission = mission;
+        break;
+      }
+    }
+
+    if (quizMission == null) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('오늘의 건강퀴즈 미션을 준비 중이에요.')));
+      return;
+    }
+
+    final mission = quizMission;
+
+    if (mission.isCompleted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('오늘 건강퀴즈는 이미 완료했어요.')));
+      return;
+    }
+
+    final result = await Navigator.of(context).push<HealthQuizScreenResult>(
+      MaterialPageRoute(
+        builder: (_) =>
+            HealthQuizScreen(repository: widget.repository, mission: mission),
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    // 퀴즈 완료 후 오늘 미션과 실제 서버 포인트 잔액만 다시 조회한다.
+    // 성공 안내는 퀴즈 화면의 보미 보상 팝업에서 한 번만 보여준다.
+    await _load();
+  }
+
+  // 아직 구현 전인 건강 활동은 준비 중 안내만 표시한다.
+  void _showActivityPreparing(String title) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('$title 기능은 준비 중이에요.')));
+  }
+
+  Future<void> _openRewards() async {
     final repository = widget.rewardRepository;
 
     if (repository == null) return;
 
-    Navigator.of(context).push<void>(
+    await Navigator.of(context).push<void>(
       MaterialPageRoute(builder: (_) => RewardScreen(repository: repository)),
     );
+
+    if (!mounted) return;
+
+    await _refreshPointBalance();
   }
 
   @override
   Widget build(BuildContext context) {
-    final completedCount = _missions.where((item) => item.isCompleted).length;
-    final totalCount = _missions.length;
-    final completionRate = totalCount == 0 ? 0.0 : completedCount / totalCount;
+    final actionMissions = _missions.where((mission) {
+      final code = mission.healthMission.code.trim().toUpperCase();
+
+      return code != 'DAILY_CHECKIN' && code != 'DAILY_QUIZ';
+    }).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFD),
@@ -108,53 +285,44 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
           children: [
-            if (widget.checkInScreenBuilder != null) ...[
-              _TodayCheckInCard(
-                onTap: () {
-                  Navigator.of(context).push<void>(
-                    MaterialPageRoute(builder: widget.checkInScreenBuilder!),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-            ],
+            _TodayCheckInCard(onTap: _openCheckIn),
+            const SizedBox(height: 16),
             if (widget.conceptSection != null) ...[
               widget.conceptSection!,
               const SizedBox(height: 24),
             ] else ...[
-              _TodayMissionHero(
-                completedCount: completedCount,
-                totalCount: totalCount,
-                completionRate: completionRate,
+              HealthActivitySection(
+                onWalk: _openWalk,
+                onQuiz: _openQuiz,
+                onBingo: () => _showActivityPreparing('두근빙고'),
+                onStudio: () => _showActivityPreparing('보미 스튜디오'),
               ),
               const SizedBox(height: 24),
             ],
             if (widget.rewardRepository != null) ...[
-              _RewardEntryCard(onTap: _openRewards),
+              _RewardEntryCard(onTap: _openRewards, balance: _pointBalance),
               const SizedBox(height: 24),
             ],
-            const Text(
-              '오늘의 실천',
-              style: TextStyle(
-                color: AppColors.navy,
-                fontSize: 19,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              '오늘 실천할 수 있는 건강 활동이에요.',
-              style: TextStyle(color: AppColors.mutedText, fontSize: 13),
-            ),
-            const SizedBox(height: 14),
             if (_loading)
               const _LoadingState()
             else if (_error != null)
               _ErrorState(message: _error!, onRetry: _load)
-            else if (_missions.isEmpty)
-              const _EmptyState()
-            else
-              ..._missions.map(
+            else if (actionMissions.isNotEmpty) ...[
+              const Text(
+                '오늘의 실천',
+                style: TextStyle(
+                  color: AppColors.navy,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                '오늘 실천할 수 있는 건강 활동이에요.',
+                style: TextStyle(color: AppColors.mutedText, fontSize: 13),
+              ),
+              const SizedBox(height: 14),
+              ...actionMissions.map(
                 (mission) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _MissionCard(
@@ -163,7 +331,8 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
                   ),
                 ),
               ),
-            const SizedBox(height: 14),
+              const SizedBox(height: 14),
+            ],
             const _BomiEncouragementCard(),
           ],
         ),
@@ -173,9 +342,10 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
 }
 
 class _RewardEntryCard extends StatelessWidget {
-  const _RewardEntryCard({required this.onTap});
+  const _RewardEntryCard({required this.onTap, required this.balance});
 
   final VoidCallback onTap;
+  final int? balance;
 
   @override
   Widget build(BuildContext context) {
@@ -191,7 +361,7 @@ class _RewardEntryCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: const Color(0xFFE7EBF1)),
           ),
-          child: const Row(
+          child: Row(
             children: [
               _RewardEntryIcon(),
               SizedBox(width: 14),
@@ -209,8 +379,10 @@ class _RewardEntryCard extends StatelessWidget {
                     ),
                     SizedBox(height: 5),
                     Text(
-                      '건강 활동으로 모은 포인트와 리워드를 확인해요.',
-                      style: TextStyle(
+                      balance == null
+                          ? '포인트와 리워드를 확인해요.'
+                          : '보유 ${balance}P · 포인트와 리워드를 확인해요.',
+                      style: const TextStyle(
                         color: AppColors.mutedText,
                         fontSize: 13,
                         height: 1.4,
@@ -322,143 +494,6 @@ class _TodayCheckInCard extends StatelessWidget {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _TodayMissionHero extends StatelessWidget {
-  const _TodayMissionHero({
-    required this.completedCount,
-    required this.totalCount,
-    required this.completionRate,
-  });
-
-  final int completedCount;
-  final int totalCount;
-  final double completionRate;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFFFF0F5), Color(0xFFFFF8FB)],
-        ),
-        borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: const Color(0xFFFFD9E6)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      '오늘의 두근',
-                      style: TextStyle(
-                        color: AppColors.navy,
-                        fontSize: 21,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    if (totalCount == 0) ...[
-                      const Text(
-                        '오늘의 미션을 준비하고 있어요',
-                        style: TextStyle(
-                          color: AppColors.navy,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        '새로운 건강 미션이 생기면 이곳에서 바로 알려드릴게요.',
-                        style: TextStyle(
-                          color: AppColors.mutedText,
-                          fontSize: 13,
-                          height: 1.45,
-                        ),
-                      ),
-                    ] else ...[
-                      Text.rich(
-                        TextSpan(
-                          children: [
-                            const TextSpan(
-                              text: '오늘 ',
-                              style: TextStyle(
-                                color: AppColors.navy,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            TextSpan(
-                              text: '$completedCount',
-                              style: const TextStyle(
-                                color: Color(0xFFF33D76),
-                                fontSize: 25,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            TextSpan(
-                              text: ' / $totalCount 완료',
-                              style: const TextStyle(
-                                color: AppColors.navy,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        '오늘 할 수 있는 만큼 천천히 이어가도 괜찮아요.',
-                        style: TextStyle(
-                          color: AppColors.mutedText,
-                          fontSize: 13,
-                          height: 1.45,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: 14),
-              Container(
-                width: 72,
-                height: 72,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.favorite_rounded,
-                  size: 40,
-                  color: Color(0xFFF75283),
-                ),
-              ),
-            ],
-          ),
-          if (totalCount > 0) ...[
-            const SizedBox(height: 20),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(999),
-              child: LinearProgressIndicator(
-                value: completionRate,
-                minHeight: 10,
-                backgroundColor: Colors.white,
-                valueColor: const AlwaysStoppedAnimation(Color(0xFFF75283)),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -672,6 +707,53 @@ class _MissionCard extends StatelessWidget {
   }
 }
 
+IconData _missionIcon(String missionType) {
+  final normalized = missionType.toUpperCase();
+
+  if (normalized.contains('WALK') ||
+      normalized.contains('STEP') ||
+      normalized.contains('ACTIVITY') ||
+      normalized.contains('EXERCISE')) {
+    return Icons.directions_walk_rounded;
+  }
+
+  if (normalized.contains('FOOD') ||
+      normalized.contains('DIET') ||
+      normalized.contains('NUTRITION')) {
+    return Icons.restaurant_rounded;
+  }
+
+  if (normalized.contains('SLEEP')) {
+    return Icons.bedtime_outlined;
+  }
+
+  if (normalized.contains('PRESSURE') ||
+      normalized.contains('BP') ||
+      normalized.contains('CHECK')) {
+    return Icons.monitor_heart_outlined;
+  }
+
+  return Icons.favorite_outline_rounded;
+}
+
+String _formatNumber(double value) {
+  if (value == value.roundToDouble()) {
+    return value.toInt().toString();
+  }
+
+  return value.toStringAsFixed(1);
+}
+
+String _unitSuffix(String? unit) {
+  final normalized = unit?.trim();
+
+  if (normalized == null || normalized.isEmpty) {
+    return '';
+  }
+
+  return ' $normalized';
+}
+
 class _BomiEncouragementCard extends StatelessWidget {
   const _BomiEncouragementCard();
 
@@ -757,95 +839,4 @@ class _ErrorState extends StatelessWidget {
       ),
     );
   }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: const Column(
-        children: [
-          Icon(
-            Icons.favorite_border_rounded,
-            size: 42,
-            color: Color(0xFFF2A1B9),
-          ),
-          SizedBox(height: 14),
-          Text(
-            '아직 오늘의 미션이 없어요',
-            style: TextStyle(
-              color: AppColors.navy,
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          SizedBox(height: 7),
-          Text(
-            '미션이 준비되면 오늘의 건강 실천을\n이곳에서 확인할 수 있어요.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.mutedText,
-              fontSize: 12,
-              height: 1.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-IconData _missionIcon(String missionType) {
-  final normalized = missionType.toUpperCase();
-
-  if (normalized.contains('WALK') ||
-      normalized.contains('STEP') ||
-      normalized.contains('ACTIVITY') ||
-      normalized.contains('EXERCISE')) {
-    return Icons.directions_walk_rounded;
-  }
-
-  if (normalized.contains('FOOD') ||
-      normalized.contains('DIET') ||
-      normalized.contains('NUTRITION')) {
-    return Icons.restaurant_rounded;
-  }
-
-  if (normalized.contains('SLEEP')) {
-    return Icons.bedtime_outlined;
-  }
-
-  if (normalized.contains('PRESSURE') ||
-      normalized.contains('BP') ||
-      normalized.contains('CHECK')) {
-    return Icons.monitor_heart_outlined;
-  }
-
-  return Icons.favorite_outline_rounded;
-}
-
-String _formatNumber(double value) {
-  if (value == value.roundToDouble()) {
-    return value.toInt().toString();
-  }
-
-  return value.toStringAsFixed(1);
-}
-
-String _unitSuffix(String? unit) {
-  final normalized = unit?.trim();
-
-  if (normalized == null || normalized.isEmpty) {
-    return '';
-  }
-
-  return ' $normalized';
 }
