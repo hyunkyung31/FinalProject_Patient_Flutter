@@ -38,12 +38,24 @@ class _BookingFormState extends State<BookingForm> {
   bool _initialError = false;
   bool _uncertain = false;
   String? _error;
+  final _firstVisitName = TextEditingController();
+  final _firstVisitBirthDate = TextEditingController();
+  final _firstVisitContact = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _verification = widget.initialVerification;
+    _firstVisitContact.text = _verification?.verifiedPhoneNumber ?? '';
     _initialize();
+  }
+
+  @override
+  void dispose() {
+    _firstVisitName.dispose();
+    _firstVisitBirthDate.dispose();
+    _firstVisitContact.dispose();
+    super.dispose();
   }
 
   Future<void> _initialize() async {
@@ -53,17 +65,19 @@ class _BookingFormState extends State<BookingForm> {
       _initialError = false;
     });
     try {
-      final values = await Future.wait([
-        widget.repository.getDepartments(),
-        widget.repository.getReservationApplicant(),
-      ]);
+      final departments = await widget.repository.getDepartments();
+      ReservationApplicant? applicant;
+      if (widget.linked) {
+        applicant = await widget.repository.getReservationApplicant();
+      }
       if (!mounted) return;
       setState(() {
-        _departments = values[0] as List<DepartmentOption>;
-        _applicant = values[1] as ReservationApplicant;
+        _departments = departments;
+        _applicant = applicant;
         _linked = widget.linked;
       });
     } catch (error) {
+      debugPrint('Reservation initialization failed: $error');
       if (mounted) {
         setState(() {
           _initialError = true;
@@ -182,6 +196,20 @@ class _BookingFormState extends State<BookingForm> {
     }
   }
 
+  ReservationApplicant? _firstVisitApplicant() {
+    final name = _firstVisitName.text.trim();
+    final contact = _firstVisitContact.text.trim();
+    final digits = _firstVisitBirthDate.text.replaceAll(RegExp(r'[^0-9]'), '');
+    if (name.isEmpty || contact.isEmpty || digits.length != 8) return null;
+    final birthDate =
+        '${digits.substring(0, 4)}-${digits.substring(4, 6)}-${digits.substring(6, 8)}';
+    return ReservationApplicant(
+      name: name,
+      birthDate: birthDate,
+      contact: contact,
+    );
+  }
+
   Future<void> _verify() async {
     if (_busy) {
       return;
@@ -231,11 +259,15 @@ class _BookingFormState extends State<BookingForm> {
     if (_busy || _uncertain) return;
     final slot = _slot;
     final doctor = _doctor;
-    final applicant = _applicant;
+    final applicant = _applicant ?? _firstVisitApplicant();
     if (slot == null ||
         doctor == null ||
         applicant == null ||
         _linked == null) {
+      setState(
+        () => _error =
+            '\uC608\uC57D \uC2E0\uCCAD\uC790 \uC815\uBCF4\uB97C \uBAA8\uB450 \uC785\uB825\uD574 \uC8FC\uC138\uC694.',
+      );
       return;
     }
     if (!slot.isAvailable ||
@@ -379,9 +411,25 @@ class _BookingFormState extends State<BookingForm> {
     }
     if (_initialError) {
       return Center(
-        child: FilledButton(
-          onPressed: _initialize,
-          child: const Text('\uB2E4\uC2DC \uC2DC\uB3C4'),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                '\uC608\uC57D \uC815\uBCF4\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC5B4\uC694.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              if (_error != null) Text(_error!, textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: _initialize,
+                child: const Text('\uB2E4\uC2DC \uC2DC\uB3C4'),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -555,7 +603,47 @@ class _BookingFormState extends State<BookingForm> {
         card(
           4,
           '\uC2E0\uCCAD\uC790 \uC815\uBCF4',
-          _applicant == null
+          _linked == false
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '\uC644\uC804 \uCD08\uC9C4 \uC608\uC57D\uC744 \uC704\uD574 \uC815\uBCF4\uB97C \uC785\uB825\uD574 \uC8FC\uC138\uC694.',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF7182A1)),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _firstVisitName,
+                      enabled: !_busy,
+                      decoration: const InputDecoration(
+                        labelText: '\uC774\uB984',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    TextField(
+                      controller: _firstVisitBirthDate,
+                      enabled: !_busy,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: '\uC0DD\uB144\uC6D4\uC77C',
+                        hintText: 'YYYYMMDD',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    TextField(
+                      controller: _firstVisitContact,
+                      enabled: !_busy,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(
+                        labelText: '\uC5F0\uB77D\uCC98',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
+                )
+              : _applicant == null
               ? const Text(
                   '\uD658\uC790 \uC815\uBCF4\uB97C \uBD88\uB7EC\uC624\uB294 \uC911\uC774\uC5D0\uC694.',
                 )
