@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:uuid/uuid.dart';
 import '../../../core/network/api_client.dart';
 
 class PatientPage {
@@ -10,6 +11,7 @@ class PatientPage {
 class PatientServicesRepository {
   PatientServicesRepository(this.client);
   final ApiClient client;
+  final _uuid = const Uuid();
 
   Future<Map<String, dynamic>> _object(String path) async {
     final response = await client.dio.get<Object?>(path);
@@ -19,16 +21,18 @@ class PatientServicesRepository {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
-  Future<PatientPage> _page(String path, int page) async {
+  Future<PatientPage> _page(
+    String path,
+    int page, {
+    Map<String, dynamic>? query,
+  }) async {
     final response = await client.dio.get<Object?>(
       path,
-      queryParameters: {'page': page},
+      queryParameters: {'page': page, ...?query},
     );
     final data = response.data;
     final rows = data is Map ? data['results'] : data;
-    if (rows is! List) {
-      throw const FormatException('목록 응답 형식을 확인하지 못했어요.');
-    }
+    if (rows is! List) throw const FormatException('Invalid list response');
     return PatientPage(
       rows.map((row) => Map<String, dynamic>.from(row as Map)).toList(),
       data is Map && data['next'] != null,
@@ -45,37 +49,37 @@ class PatientServicesRepository {
   Future<PatientPage> consents(int page) => _page('/api/consents/', page);
 
   Future<List<Map<String, dynamic>>> requiredConsentDocuments() async {
-    final documents = await _allPages('/api/consent-documents/');
-    final consents = await _allPages('/api/consents/');
+    final documents = await _allPages(
+      '/api/consent-documents/',
+      query: {'consent_type': 'REQUIRED', 'active': 'true'},
+    );
+    final consents = await _allPages(
+      '/api/consents/',
+      query: {'consent_type': 'REQUIRED', 'status': 'CONSENTED'},
+    );
     final consentedDocumentIds = <int>{
       for (final consent in consents)
-        if (consent['status'] == 'CONSENTED' &&
-            consent['consent_document'] is Map &&
-            consent['consent_document']['id'] is int)
-          consent['consent_document']['id'] as int,
+        if (consent['consent_document'] is Map &&
+            (consent['consent_document'] as Map)['id'] is int)
+          (consent['consent_document'] as Map)['id'] as int,
     };
-    final required = <Map<String, dynamic>>[];
-    for (final document in documents) {
-      if (document['consent_type'] != 'REQUIRED' ||
-          document['is_active'] != true) {
-        continue;
-      }
-      if (document['id'] is! int ||
-          document['title'] is! String ||
-          document['content_text'] is! String) {
-        throw const FormatException('필수 동의 문서 형식을 확인하지 못했어요.');
-      }
-      if (!consentedDocumentIds.contains(document['id'])) {
-        required.add(document);
-      }
-    }
-    return required;
+    return [
+      for (final document in documents)
+        if (document['id'] is int &&
+            document['title'] is String &&
+            document['content_text'] is String &&
+            !consentedDocumentIds.contains(document['id']))
+          document,
+    ];
   }
 
-  Future<List<Map<String, dynamic>>> _allPages(String path) async {
+  Future<List<Map<String, dynamic>>> _allPages(
+    String path, {
+    Map<String, dynamic>? query,
+  }) async {
     final rows = <Map<String, dynamic>>[];
     for (var page = 1; ; page++) {
-      final result = await _page(path, page);
+      final result = await _page(path, page, query: query);
       rows.addAll(result.items);
       if (!result.hasNext) return rows;
     }
@@ -98,10 +102,25 @@ class PatientServicesRepository {
     );
   }
 
-  Future<void> consent(int documentId) async {
+  Future<void> consent(int documentId) =>
+      consentWithIdempotency(documentId, idempotencyKey: _uuid.v4());
+
+  Future<void> consentWithIdempotency(
+    int documentId, {
+    required String idempotencyKey,
+  }) async {
     await client.dio.post<Object?>(
       '/api/consents/',
-      data: {'consent_document_id': documentId, 'consented': true},
+      options: Options(headers: {'Idempotency-Key': idempotencyKey}),
+      data: {
+        'consent_document_id': documentId,
+        'consented': true,
+        'auth_method': 'APP',
+        'evidence_json': {
+          'source': 'patient_app',
+          'submitted_at': DateTime.now().toUtc().toIso8601String(),
+        },
+      },
     );
   }
 

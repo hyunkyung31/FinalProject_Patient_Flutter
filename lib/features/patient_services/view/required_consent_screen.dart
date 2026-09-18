@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
 import '../repository/patient_services_repository.dart';
 
@@ -22,6 +23,8 @@ class RequiredConsentScreen extends StatefulWidget {
 
 class _RequiredConsentScreenState extends State<RequiredConsentScreen> {
   final selected = <int>{};
+  final _uuid = const Uuid();
+  final _idempotencyKeys = <int, String>{};
   bool saving = false;
   String? error;
 
@@ -33,7 +36,11 @@ class _RequiredConsentScreenState extends State<RequiredConsentScreen> {
     });
     try {
       for (final document in widget.documents) {
-        await widget.repository.consent(document['id'] as int);
+        final documentId = document['id'] as int;
+        await widget.repository.consentWithIdempotency(
+          documentId,
+          idempotencyKey: _idempotencyKeys.putIfAbsent(documentId, _uuid.v4),
+        );
       }
       if (!mounted) return;
       await widget.onCompleted();
