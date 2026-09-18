@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../../core/network/api_client.dart';
 import '../model/health_mission.dart';
+import '../model/health_quiz.dart';
 
 abstract class HealthMissionRepository {
   Future<List<PatientHealthMission>> getMissions({
@@ -10,6 +11,13 @@ abstract class HealthMissionRepository {
   });
 
   Future<List<PatientHealthMission>> getTodayMissions();
+
+  Future<HealthQuiz> getDailyQuiz(int missionId);
+
+  Future<HealthQuizAnswerResult> submitDailyQuizAnswer({
+    required int missionId,
+    required String answerId,
+  });
 
   Future<HealthMissionLog> saveMissionLog({
     required int missionId,
@@ -57,6 +65,38 @@ class PatientHealthMissionRepository implements HealthMissionRepository {
     final response = await client.dio.get<Object?>('${_path}today/');
 
     return _parseMissionList(response.data);
+  }
+
+  @override
+  Future<HealthQuiz> getDailyQuiz(int missionId) async {
+    final response = await client.dio.get<Object?>('$_path$missionId/quiz/');
+
+    final data = response.data;
+
+    if (data is! Map) {
+      throw const FormatException('건강퀴즈 응답이 올바르지 않습니다.');
+    }
+
+    return HealthQuiz.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  @override
+  Future<HealthQuizAnswerResult> submitDailyQuizAnswer({
+    required int missionId,
+    required String answerId,
+  }) async {
+    final response = await client.dio.post<Object?>(
+      '$_path$missionId/quiz/',
+      data: <String, dynamic>{'answer_id': answerId},
+    );
+
+    final data = response.data;
+
+    if (data is! Map) {
+      throw const FormatException('건강퀴즈 답안 응답이 올바르지 않습니다.');
+    }
+
+    return HealthQuizAnswerResult.fromJson(Map<String, dynamic>.from(data));
   }
 
   @override

@@ -4,4 +4,7 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- 로컬 Backend E2E 테스트용이며 release 빌드에는 적용되지 않습니다. -->
+    <application android:usesCleartextTraffic="true" />
 </manifest>

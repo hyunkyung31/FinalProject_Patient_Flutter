@@ -60,6 +60,10 @@ class PointTransaction {
   bool get isEarned => transactionType.toUpperCase() == 'EARN';
   bool get isSpent => transactionType.toUpperCase() == 'SPEND';
 
+  // 서버 UTC 시각을 서비스 기준 한국 표준시(KST)로 표시합니다.
+  DateTime get occurredAtKst =>
+      occurredAt.toUtc().add(const Duration(hours: 9));
+
   factory PointTransaction.fromJson(Map<String, dynamic> json) {
     return PointTransaction(
       id: _requiredInt(json['id'], 'id'),

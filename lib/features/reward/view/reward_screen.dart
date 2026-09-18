@@ -618,7 +618,7 @@ class _TransactionRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  _date(transaction.occurredAt),
+                  _date(transaction.occurredAtKst),
                   style: const TextStyle(
                     color: AppColors.mutedText,
                     fontSize: 12,
