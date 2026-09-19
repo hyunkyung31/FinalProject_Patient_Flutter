@@ -9,6 +9,7 @@ import 'health_mission_detail_screen.dart';
 import 'health_checkin_screen.dart';
 import 'health_activity_section.dart';
 import 'health_quiz_screen.dart';
+import 'health_bingo_screen.dart';
 import 'health_walk_screen.dart';
 
 class HealthManagementScreen extends StatefulWidget {
@@ -103,10 +104,18 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
 
   Future<void> _openCheckIn() async {
     PatientHealthMission? checkInMission;
+    PatientHealthMission? breathMission;
 
     for (final mission in _missions) {
-      if (mission.healthMission.code.trim().toUpperCase() == 'DAILY_CHECKIN') {
+      final code = mission.healthMission.code.trim().toUpperCase();
+
+      if (code == 'DAILY_CHECKIN') {
         checkInMission = mission;
+      } else if (code == 'DAILY_BREATH') {
+        breathMission = mission;
+      }
+
+      if (checkInMission != null && breathMission != null) {
         break;
       }
     }
@@ -129,6 +138,15 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
       return;
     }
 
+    if (breathMission == null) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('오늘의 1분 호흡 미션을 준비 중이에요.')));
+      return;
+    }
+
     if (checkInMission.isCompleted) {
       ScaffoldMessenger.of(
         context,
@@ -141,6 +159,7 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
         builder: (_) => HealthCheckInScreen(
           repository: widget.repository,
           mission: checkInMission!,
+          breathMission: breathMission!,
         ),
       ),
     );
@@ -192,11 +211,39 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
     }
   }
 
-  // Health Connect 기반 걸음 수 화면으로 이동한다.
-  void _openWalk() {
-    Navigator.of(
-      context,
-    ).push<void>(MaterialPageRoute(builder: (_) => const HealthWalkScreen()));
+  // 오늘 배정된 DAILY_WALK 미션과 Health Connect 걸음 기록을 연결한다.
+  Future<void> _openWalk() async {
+    PatientHealthMission? walkMission;
+
+    for (final mission in _missions) {
+      if (mission.healthMission.code.trim().toUpperCase() == 'DAILY_WALK') {
+        walkMission = mission;
+        break;
+      }
+    }
+
+    if (walkMission == null) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('오늘의 리듬산책 미션을 준비 중이에요.')));
+      return;
+    }
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => HealthWalkScreen(
+          repository: widget.repository,
+          mission: walkMission!,
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+
+    // 산책 화면에서 기록된 최신 걸음 진행도를 다시 반영한다.
+    await _load();
   }
 
   // 오늘 배정된 DAILY_QUIZ 미션과 실제 퀴즈 API를 연결한다.
@@ -242,6 +289,42 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
     await _load();
   }
 
+  // 이번 주 WEEKLY_BINGO 미션과 두근빙고 화면을 연결한다.
+  Future<void> _openBingo() async {
+    PatientHealthMission? bingoMission;
+
+    for (final mission in _missions) {
+      if (mission.healthMission.code.trim().toUpperCase() == 'WEEKLY_BINGO') {
+        bingoMission = mission;
+        break;
+      }
+    }
+
+    if (bingoMission == null) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('이번 주 두근빙고 미션을 준비 중이에요.')));
+      return;
+    }
+
+    final mission = bingoMission;
+
+    // 완료된 주간 빙고도 다시 열어 완성 상태를 확인할 수 있게 한다.
+    final result = await Navigator.of(context).push<HealthBingoScreenResult>(
+      MaterialPageRoute(
+        builder: (_) =>
+            HealthBingoScreen(repository: widget.repository, mission: mission),
+      ),
+    );
+
+    if (result == null || !mounted) return;
+
+    // 빙고 수행 후 미션 진행도와 서버 포인트 잔액을 다시 조회한다.
+    await _load();
+  }
+
   // 아직 구현 전인 건강 활동은 준비 중 안내만 표시한다.
   void _showActivityPreparing(String title) {
     ScaffoldMessenger.of(
@@ -268,7 +351,11 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
     final actionMissions = _missions.where((mission) {
       final code = mission.healthMission.code.trim().toUpperCase();
 
-      return code != 'DAILY_CHECKIN' && code != 'DAILY_QUIZ';
+      return code != 'DAILY_CHECKIN' &&
+          code != 'DAILY_QUIZ' &&
+          code != 'DAILY_WALK' &&
+          code != 'DAILY_BREATH' &&
+          code != 'WEEKLY_BINGO';
     }).toList();
 
     return Scaffold(
@@ -301,7 +388,7 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
               HealthActivitySection(
                 onWalk: _openWalk,
                 onQuiz: _openQuiz,
-                onBingo: () => _showActivityPreparing('두근빙고'),
+                onBingo: _openBingo,
                 onStudio: () => _showActivityPreparing('보미 스튜디오'),
               ),
               const SizedBox(height: 24),

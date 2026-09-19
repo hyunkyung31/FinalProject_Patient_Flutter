@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../../core/network/api_client.dart';
+import '../model/health_bingo.dart';
 import '../model/health_mission.dart';
 import '../model/health_quiz.dart';
 
@@ -18,6 +19,10 @@ abstract class HealthMissionRepository {
     required int missionId,
     required String answerId,
   });
+
+  Future<HealthBingoBoard> getWeeklyBingo(
+    int missionId,
+  );
 
   Future<HealthMissionLog> saveMissionLog({
     required int missionId,
@@ -97,6 +102,27 @@ class PatientHealthMissionRepository implements HealthMissionRepository {
     }
 
     return HealthQuizAnswerResult.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  @override
+  Future<HealthBingoBoard> getWeeklyBingo(
+    int missionId,
+  ) async {
+    final response = await client.dio.get<Object?>(
+      '$_path$missionId/bingo/',
+    );
+
+    final data = response.data;
+
+    if (data is! Map) {
+      throw const FormatException(
+        '두근빙고 응답이 올바르지 않습니다.',
+      );
+    }
+
+    return HealthBingoBoard.fromJson(
+      Map<String, dynamic>.from(data),
+    );
   }
 
   @override
