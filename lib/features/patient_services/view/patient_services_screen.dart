@@ -259,7 +259,7 @@ class _PatientServicesScreenState extends State<PatientServicesScreen> {
       'changes': '정보 변경 요청',
       'documents': '약관 · 동의 문서',
       'consents': '내 동의 내역',
-      'settings': '화면 · 접근성 설정',
+      'settings': '내 정보 · 설정',
     };
     return Scaffold(
       appBar: widget.embedded
@@ -302,97 +302,173 @@ class _PatientServicesScreenState extends State<PatientServicesScreen> {
     );
   }
 
+  // 기존 '내 정보 · 서비스' 내용을 재사용 가능한 섹션으로 분리한다.
+  // 하단 탭을 다시 분리하더라도 이 섹션을 그대로 사용할 수 있다.
+  List<Widget> _buildMyInfoSection({
+    bool includeSettingsShortcut = true,
+    String summarySubtitle = '필요한 정보를 확인하고 관리해요.',
+  }) {
+    return [
+      Container(
+        margin: const EdgeInsets.only(bottom: 20),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFE8F2FF), Color(0xFFF5F8FF)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 58,
+              height: 58,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.person_rounded,
+                color: AppColors.blue,
+                size: 31,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.patientName?.trim().isNotEmpty == true
+                        ? '${widget.patientName!.trim()}님'
+                        : '내 정보',
+                    style: const TextStyle(
+                      color: AppColors.navy,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    summarySubtitle,
+                    style: const TextStyle(
+                      color: AppColors.mutedText,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      tile(
+        '내 환자정보',
+        '병원에 등록된 정보 조회 · 변경 요청',
+        Icons.person_outline,
+        () => open('profile'),
+      ),
+      tile(
+        '병원기록 연결',
+        '휴대폰 인증 후 연결 요청',
+        Icons.folder_shared_outlined,
+        () => open('link'),
+      ),
+      tile(
+        '약관 · 개인정보 동의',
+        '문서 확인과 동의',
+        Icons.description_outlined,
+        () => open('documents'),
+      ),
+      tile(
+        '내 동의 내역',
+        '동의 내역 확인 · 철회',
+        Icons.privacy_tip_outlined,
+        () => open('consents'),
+      ),
+      if (includeSettingsShortcut)
+        tile(
+          '화면 · 접근성',
+          '글자 크기 · 테마 · 대비 · 모션',
+          Icons.settings_accessibility,
+          () => open('settings'),
+        ),
+    ];
+  }
+
+  // 기존 화면 · 접근성 설정 기능도 독립 위젯으로 보존한다.
+  // 추후 별도 설정 화면으로 다시 분리해도 이 위젯을 그대로 재사용할 수 있다.
+  Widget _buildAccessibilitySettingsPanel() {
+    return ListenableBuilder(
+      listenable: AppPreferences.instance,
+      builder: (context, _) {
+        final settings = AppPreferences.instance;
+
+        Future<void> save(Future<void> Function() action) async {
+          setState(() => saving = true);
+          try {
+            await action();
+          } catch (_) {
+            if (mounted) message('화면 설정을 저장하지 못했어요.');
+          } finally {
+            if (mounted) setState(() => saving = false);
+          }
+        }
+
+        return Column(
+          children: [
+            if (settings.error != null) Text(settings.error!),
+            SwitchListTile(
+              title: const Text('다크 모드'),
+              value: settings.dark,
+              onChanged: saving
+                  ? null
+                  : (v) => save(() => settings.save(dark: v)),
+            ),
+            SwitchListTile(
+              title: const Text('높은 대비'),
+              value: settings.highContrast,
+              onChanged: saving
+                  ? null
+                  : (v) => save(() => settings.save(highContrast: v)),
+            ),
+            SwitchListTile(
+              title: const Text('모션 줄이기'),
+              value: settings.reduceMotion,
+              onChanged: saving
+                  ? null
+                  : (v) => save(() => settings.save(reduceMotion: v)),
+            ),
+            const Text('글자 크기'),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final scale in [1.0, 1.2, 1.5])
+                  ChoiceChip(
+                    label: Text('${(scale * 100).round()}%'),
+                    selected: settings.textScale == scale,
+                    onSelected: saving
+                        ? null
+                        : (_) => save(() => settings.save(textScale: scale)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Text('설정은 이 기기에 저장돼요. 휴대폰의 글자 크기 설정도 함께 적용됩니다.'),
+          ],
+        );
+      },
+    );
+  }
+
   List<Widget> body() {
     final disabled = saving || loading || uncertain;
     switch (widget.section) {
       case 'menu':
-        return [
-          Container(
-            margin: const EdgeInsets.only(bottom: 20),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFE8F2FF), Color(0xFFF5F8FF)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 58,
-                  height: 58,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.person_rounded,
-                    color: AppColors.blue,
-                    size: 31,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.patientName?.trim().isNotEmpty == true
-                            ? widget.patientName!.trim() + '\uB2D8'
-                            : '\uB0B4 \uC815\uBCF4',
-                        style: const TextStyle(
-                          color: AppColors.navy,
-                          fontSize: 19,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        '\uD544\uC694\uD55C \uC815\uBCF4\uB97C \uD655\uC778\uD558\uACE0 \uAD00\uB9AC\uD574\uC694.',
-                        style: TextStyle(
-                          color: AppColors.mutedText,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          tile(
-            '내 환자정보',
-            '병원에 등록된 정보 조회 · 변경 요청',
-            Icons.person_outline,
-            () => open('profile'),
-          ),
-          tile(
-            '병원기록 연결',
-            '휴대폰 인증 후 연결 요청',
-            Icons.folder_shared_outlined,
-            () => open('link'),
-          ),
-          tile(
-            '약관 · 개인정보 동의',
-            '문서 확인과 동의',
-            Icons.description_outlined,
-            () => open('documents'),
-          ),
-          tile(
-            '내 동의 내역',
-            '동의 내역 확인 · 철회',
-            Icons.privacy_tip_outlined,
-            () => open('consents'),
-          ),
-          tile(
-            '화면 · 접근성',
-            '글자 크기 · 테마 · 대비 · 모션',
-            Icons.settings_accessibility,
-            () => open('settings'),
-          ),
-        ];
+        return _buildMyInfoSection();
       case 'profile':
         return [
           if (data != null) ...[
@@ -704,66 +780,26 @@ class _PatientServicesScreenState extends State<PatientServicesScreen> {
         ];
       case 'settings':
         return [
-          ListenableBuilder(
-            listenable: AppPreferences.instance,
-            builder: (context, _) {
-              final settings = AppPreferences.instance;
-              Future<void> save(Future<void> Function() action) async {
-                setState(() => saving = true);
-                try {
-                  await action();
-                } catch (_) {
-                  if (mounted) message('화면 설정을 저장하지 못했어요.');
-                } finally {
-                  if (mounted) setState(() => saving = false);
-                }
-              }
-
-              return Column(
-                children: [
-                  if (settings.error != null) Text(settings.error!),
-                  SwitchListTile(
-                    title: const Text('다크 모드'),
-                    value: settings.dark,
-                    onChanged: saving
-                        ? null
-                        : (v) => save(() => settings.save(dark: v)),
-                  ),
-                  SwitchListTile(
-                    title: const Text('높은 대비'),
-                    value: settings.highContrast,
-                    onChanged: saving
-                        ? null
-                        : (v) => save(() => settings.save(highContrast: v)),
-                  ),
-                  SwitchListTile(
-                    title: const Text('모션 줄이기'),
-                    value: settings.reduceMotion,
-                    onChanged: saving
-                        ? null
-                        : (v) => save(() => settings.save(reduceMotion: v)),
-                  ),
-                  const Text('글자 크기'),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      for (final scale in [1.0, 1.2, 1.5])
-                        ChoiceChip(
-                          label: Text('${(scale * 100).round()}%'),
-                          selected: settings.textScale == scale,
-                          onSelected: saving
-                              ? null
-                              : (_) =>
-                                    save(() => settings.save(textScale: scale)),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Text('설정은 이 기기에 저장돼요. 휴대폰의 글자 크기 설정도 함께 적용됩니다.'),
-                ],
-              );
-            },
+          ..._buildMyInfoSection(
+            includeSettingsShortcut: false,
+            summarySubtitle: '내 정보와 앱 사용 환경을 한곳에서 관리해요.',
           ),
+          const SizedBox(height: 18),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(4, 0, 4, 10),
+              child: Text(
+                '앱 설정',
+                style: TextStyle(
+                  color: AppColors.navy,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ),
+          _buildAccessibilitySettingsPanel(),
         ];
       default:
         return [];
