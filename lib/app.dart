@@ -3,7 +3,6 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/app_preferences.dart';
 import 'features/splash/view/startup_screen.dart';
 import 'features/onboarding/repository/onboarding_repository.dart';
-import 'features/chatbot/widgets/chatbot_overlay_host.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key, this.onboardingRepository});
@@ -43,7 +42,7 @@ class MyApp extends StatelessWidget {
               disableAnimations:
                   media.disableAnimations || settings.reduceMotion,
             ),
-            child: ChatbotOverlayHost(child: child!),
+            child: child!,
           );
         },
         home: StartupScreen(repository: onboardingRepository),

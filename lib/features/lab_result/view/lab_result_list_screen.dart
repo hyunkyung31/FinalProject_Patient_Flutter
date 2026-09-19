@@ -7,9 +7,14 @@ import '../repository/lab_result_repository.dart';
 import 'lab_result_detail_screen.dart';
 
 class LabResultListScreen extends StatefulWidget {
-  const LabResultListScreen({super.key, this.repository});
+  const LabResultListScreen({
+    super.key,
+    this.repository,
+    this.embedded = false,
+  });
 
   final LabResultRepository? repository;
+  final bool embedded;
 
   @override
   State<LabResultListScreen> createState() => _LabResultListScreenState();
@@ -74,16 +79,18 @@ class _LabResultListScreenState extends State<LabResultListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: const Text('검사결과'),
-        actions: [
-          IconButton(
-            tooltip: '새로고침',
-            onPressed: _reload,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-        ],
-      ),
+      appBar: widget.embedded
+          ? null
+          : AppBar(
+              title: const Text('검사결과'),
+              actions: [
+                IconButton(
+                  tooltip: '새로고침',
+                  onPressed: _reload,
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
+              ],
+            ),
       body: widget.repository == null
           ? const _PendingView()
           : FutureBuilder<List<LabResult>>(
