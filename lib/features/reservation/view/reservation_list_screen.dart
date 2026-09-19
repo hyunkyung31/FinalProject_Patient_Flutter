@@ -8,9 +8,14 @@ import 'patient_reservation_detail_screen.dart';
 import 'reservation_screen.dart';
 
 class ReservationListScreen extends StatefulWidget {
-  const ReservationListScreen({super.key, this.repository});
+  const ReservationListScreen({
+    super.key,
+    this.repository,
+    this.embedded = false,
+  });
 
   final ReservationRepository? repository;
+  final bool embedded;
 
   @override
   State<ReservationListScreen> createState() => _ReservationListScreenState();
@@ -157,39 +162,44 @@ class _ReservationListScreenState extends State<ReservationListScreen>
     length: 2,
     child: Scaffold(
       backgroundColor: const Color(0xFFF7FBFF),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        foregroundColor: const Color(0xFF182438),
-        elevation: 0,
-        title: const Text(
-          '예약 목록',
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 21),
-        ),
-        actions: [
-          IconButton(
-            tooltip: '새로고침',
-            onPressed: widget.repository == null ? null : _reload,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-          const SizedBox(width: 4),
-        ],
-        bottom: const TabBar(
-          labelColor: Color(0xFF286BFF),
-          unselectedLabelColor: Color(0xFF7182A1),
-          indicatorColor: Color(0xFF286BFF),
-          indicatorWeight: 3,
-          labelStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-          unselectedLabelStyle: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-          ),
-          tabs: [
-            Tab(text: '예정된 예약'),
-            Tab(text: '지난 예약'),
-          ],
-        ),
-      ),
+      appBar: widget.embedded
+          ? null
+          : AppBar(
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.transparent,
+              foregroundColor: const Color(0xFF182438),
+              elevation: 0,
+              title: const Text(
+                '예약 목록',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 21),
+              ),
+              actions: [
+                IconButton(
+                  tooltip: '새로고침',
+                  onPressed: widget.repository == null ? null : _reload,
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
+                const SizedBox(width: 4),
+              ],
+              bottom: const TabBar(
+                labelColor: Color(0xFF286BFF),
+                unselectedLabelColor: Color(0xFF7182A1),
+                indicatorColor: Color(0xFF286BFF),
+                indicatorWeight: 3,
+                labelStyle: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+                unselectedLabelStyle: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+                tabs: [
+                  Tab(text: '예정된 예약'),
+                  Tab(text: '지난 예약'),
+                ],
+              ),
+            ),
       body: Stack(
         fit: StackFit.expand,
         children: [

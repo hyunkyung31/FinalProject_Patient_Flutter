@@ -23,7 +23,7 @@ import '../../lab_result/view/lab_result_list_screen.dart';
 import '../../patient_report/repository/patient_report_repository.dart';
 import '../../patient_report/view/patient_report_list_screen.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
     super.key,
     this.reservationRepository,
@@ -32,11 +32,202 @@ class DashboardScreen extends StatelessWidget {
     this.patientName,
     this.onRefreshLink,
   });
+
   final bool? patientLinked;
   final String? patientName;
   final Future<void> Function()? onRefreshLink;
   final Future<void> Function()? onLogout;
   final ReservationRepository? reservationRepository;
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  var _selectedIndex = 0;
+
+  void _selectTab(int index) {
+    setState(() => _selectedIndex = index);
+  }
+
+  Widget _pageFor(int index) {
+    final repository = widget.reservationRepository;
+
+    switch (index) {
+      case 0:
+        return _DashboardHome(
+          reservationRepository: repository,
+          onLogout: widget.onLogout,
+          patientLinked: widget.patientLinked,
+          patientName: widget.patientName,
+          onRefreshLink: widget.onRefreshLink,
+          embedded: true,
+          onSelectTab: _selectTab,
+        );
+      case 1:
+        return ReservationListScreen(repository: repository, embedded: true);
+      case 2:
+        if (widget.patientLinked == true && repository != null) {
+          return HealthManagementScreen(
+            repository: PatientHealthMissionRepository(repository.client),
+            rewardRepository: PatientRewardRepository(repository.client),
+            embedded: true,
+          );
+        }
+        if (repository != null) {
+          return PatientServicesScreen(
+            repository: repository,
+            section: 'link',
+            embedded: true,
+          );
+        }
+        return const SizedBox.shrink();
+      case 3:
+        if (repository != null) {
+          return PatientServicesScreen(
+            repository: repository,
+            embedded: true,
+            patientName: widget.patientName,
+          );
+        }
+        return const SizedBox.shrink();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Column(
+        children: [
+          _PersistentTopBar(
+            repository: widget.reservationRepository,
+            tinted: _selectedIndex == 0,
+          ),
+          Expanded(
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: List.generate(4, _pageFor),
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: NavigationBar(
+        backgroundColor: Colors.white,
+        indicatorColor: AppColors.lightBlue,
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: _selectTab,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home_rounded),
+            label: '\uD648',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month_rounded),
+            label: '\uC608\uC57D',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.favorite_border_rounded),
+            selectedIcon: Icon(Icons.favorite_rounded),
+            label: '\uAC74\uAC15\uAD00\uB9AC',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline_rounded),
+            selectedIcon: Icon(Icons.person_rounded),
+            label: '\uB0B4 \uC815\uBCF4',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PersistentTopBar extends StatelessWidget {
+  const _PersistentTopBar({required this.repository, required this.tinted});
+
+  final ReservationRepository? repository;
+  final bool tinted;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: SafeArea(
+        bottom: false,
+        child: Container(
+          height: 62,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            gradient: tinted
+                ? const LinearGradient(
+                    colors: [Color(0xFFDCEBFF), Color(0xFFE9E5FF)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  )
+                : null,
+            color: tinted ? null : Colors.white,
+            border: tinted
+                ? null
+                : const Border(bottom: BorderSide(color: Color(0xFFE7EDF7))),
+          ),
+          child: Row(
+            children: [
+              Image.asset(
+                'assets/images/bomi/dugn_logo.png',
+                height: 28,
+                fit: BoxFit.contain,
+                excludeFromSemantics: true,
+              ),
+              const Spacer(),
+              const _TextScaleButton(),
+              IconButton(
+                tooltip: '\uC628\uBCF4\uB529',
+                onPressed: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute(
+                    builder: (guideContext) => OnboardingScreen(
+                      onComplete: () async => Navigator.of(guideContext).pop(),
+                    ),
+                  ),
+                ),
+                icon: const Icon(
+                  Icons.help_outline_rounded,
+                  color: AppColors.navy,
+                ),
+              ),
+              if (repository != null)
+                PatientNotificationButton(repository: repository!)
+              else
+                const SizedBox(width: 48),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashboardHome extends StatelessWidget {
+  const _DashboardHome({
+    super.key,
+    this.reservationRepository,
+    this.onLogout,
+    this.patientLinked,
+    this.patientName,
+    this.onRefreshLink,
+    this.embedded = false,
+    this.onSelectTab,
+  });
+  final bool? patientLinked;
+  final String? patientName;
+  final Future<void> Function()? onRefreshLink;
+  final Future<void> Function()? onLogout;
+  final ReservationRepository? reservationRepository;
+  final bool embedded;
+  final ValueChanged<int>? onSelectTab;
   Future<void> openService(BuildContext context, String section) async {
     final repository = reservationRepository;
     if (repository == null) return;
@@ -52,6 +243,10 @@ class DashboardScreen extends StatelessWidget {
 
   // 건강관리 화면 진입 로직을 홈 배너와 하단 탭에서 함께 사용한다.
   void openHealthManagement(BuildContext context) {
+    if (embedded && onSelectTab != null) {
+      onSelectTab!(2);
+      return;
+    }
     final repository = reservationRepository;
 
     if (patientLinked == true && repository != null) {
@@ -70,6 +265,10 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Future<void> openReservations(BuildContext context) async {
+    if (embedded && onSelectTab != null) {
+      onSelectTab!(1);
+      return;
+    }
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) =>
@@ -222,7 +421,7 @@ class DashboardScreen extends StatelessWidget {
                   Container(
                     padding: EdgeInsets.fromLTRB(
                       18,
-                      MediaQuery.paddingOf(context).top + 8,
+                      embedded ? 12 : MediaQuery.paddingOf(context).top + 8,
                       18,
                       18,
                     ),
@@ -236,56 +435,61 @@ class DashboardScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Row(
-                          children: [
-                            Image.asset(
-                              'assets/images/bomi/dugn_logo.png',
-                              height: 34,
-                              fit: BoxFit.contain,
-                              alignment: Alignment.centerLeft,
-                              excludeFromSemantics: true,
-                            ),
-                            const Spacer(),
-                            const _TextScaleButton(),
-                            IconButton(
-                              tooltip: '앱 사용 가이드',
-                              onPressed: () => Navigator.of(context).push<void>(
-                                MaterialPageRoute(
-                                  builder: (guideContext) => OnboardingScreen(
-                                    onComplete: () async =>
-                                        Navigator.of(guideContext).pop(),
+                        if (!embedded)
+                          Row(
+                            children: [
+                              Image.asset(
+                                'assets/images/bomi/dugn_logo.png',
+                                height: 34,
+                                fit: BoxFit.contain,
+                                alignment: Alignment.centerLeft,
+                                excludeFromSemantics: true,
+                              ),
+                              const Spacer(),
+                              const _TextScaleButton(),
+                              IconButton(
+                                tooltip: '앱 사용 가이드',
+                                onPressed: () =>
+                                    Navigator.of(context).push<void>(
+                                      MaterialPageRoute(
+                                        builder: (guideContext) =>
+                                            OnboardingScreen(
+                                              onComplete: () async =>
+                                                  Navigator.of(
+                                                    guideContext,
+                                                  ).pop(),
+                                            ),
+                                      ),
+                                    ),
+                                icon: const Icon(
+                                  Icons.help_outline_rounded,
+                                  color: AppColors.navy,
+                                ),
+                              ),
+                              if (reservationRepository != null)
+                                PatientNotificationButton(
+                                  repository: reservationRepository!,
+                                )
+                              else
+                                IconButton(
+                                  tooltip: '알림',
+                                  onPressed: () => open(context, '알림'),
+                                  icon: const Icon(
+                                    Icons.notifications_none_rounded,
+                                    color: AppColors.navy,
                                   ),
                                 ),
-                              ),
-                              icon: const Icon(
-                                Icons.help_outline_rounded,
-                                color: AppColors.navy,
-                              ),
-                            ),
-                            if (reservationRepository != null)
-                              PatientNotificationButton(
-                                repository: reservationRepository!,
-                              )
-                            else
-                              IconButton(
-                                tooltip: '알림',
-                                onPressed: () => open(context, '알림'),
-                                icon: const Icon(
-                                  Icons.notifications_none_rounded,
-                                  color: AppColors.navy,
+                              if (onLogout != null)
+                                IconButton(
+                                  tooltip: '로그아웃',
+                                  onPressed: onLogout,
+                                  icon: const Icon(
+                                    Icons.logout,
+                                    color: AppColors.navy,
+                                  ),
                                 ),
-                              ),
-                            if (onLogout != null)
-                              IconButton(
-                                tooltip: '로그아웃',
-                                onPressed: onLogout,
-                                icon: const Icon(
-                                  Icons.logout,
-                                  color: AppColors.navy,
-                                ),
-                              ),
-                          ],
-                        ),
+                            ],
+                          ),
                         SizedBox(height: compact ? 12 : 18),
 
                         // 인사말과 보미를 겹쳐 배치한다.
@@ -539,51 +743,54 @@ class DashboardScreen extends StatelessWidget {
         ),
       ),
     ),
-    bottomNavigationBar: NavigationBar(
-      backgroundColor: Colors.white,
-      indicatorColor: AppColors.lightBlue,
-      selectedIndex: 0,
-      onDestinationSelected: (index) {
-        if (index == 1) {
-          Navigator.of(context).push<void>(
-            MaterialPageRoute(
-              builder: (_) =>
-                  ReservationListScreen(repository: reservationRepository),
-            ),
-          );
-          return;
-        }
-        if (index == 2) {
-          openHealthManagement(context);
-          return;
-        }
+    bottomNavigationBar: embedded
+        ? null
+        : NavigationBar(
+            backgroundColor: Colors.white,
+            indicatorColor: AppColors.lightBlue,
+            selectedIndex: 0,
+            onDestinationSelected: (index) {
+              if (index == 1) {
+                Navigator.of(context).push<void>(
+                  MaterialPageRoute(
+                    builder: (_) => ReservationListScreen(
+                      repository: reservationRepository,
+                    ),
+                  ),
+                );
+                return;
+              }
+              if (index == 2) {
+                openHealthManagement(context);
+                return;
+              }
 
-        if (index == 3 && reservationRepository != null) {
-          openService(context, 'menu');
-          return;
-        }
-        if (index != 0) open(context, ['홈', '예약', '건강관리', '내 정보'][index]);
-      },
-      destinations: const [
-        NavigationDestination(
-          icon: Icon(Icons.home_outlined),
-          selectedIcon: Icon(Icons.home_rounded, color: AppColors.navy),
-          label: '홈',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.calendar_month_outlined),
-          label: '예약',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.favorite_border_rounded),
-          label: '건강관리',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.person_outline_rounded),
-          label: '내 정보',
-        ),
-      ],
-    ),
+              if (index == 3 && reservationRepository != null) {
+                openService(context, 'menu');
+                return;
+              }
+              if (index != 0) open(context, ['홈', '예약', '건강관리', '내 정보'][index]);
+            },
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home_rounded, color: AppColors.navy),
+                label: '홈',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.calendar_month_outlined),
+                label: '예약',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.favorite_border_rounded),
+                label: '건강관리',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.person_outline_rounded),
+                label: '내 정보',
+              ),
+            ],
+          ),
   );
 }
 

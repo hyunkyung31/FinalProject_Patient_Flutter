@@ -18,12 +18,14 @@ class HealthManagementScreen extends StatefulWidget {
     this.checkInScreenBuilder,
     this.conceptSection,
     this.rewardRepository,
+    this.embedded = false,
   });
 
   final HealthMissionRepository repository;
   final WidgetBuilder? checkInScreenBuilder;
   final Widget? conceptSection;
   final RewardRepository? rewardRepository;
+  final bool embedded;
 
   @override
   State<HealthManagementScreen> createState() => _HealthManagementScreenState();
@@ -271,14 +273,19 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFD),
-      appBar: AppBar(
-        title: const Text(
-          '건강관리',
-          style: TextStyle(color: AppColors.navy, fontWeight: FontWeight.w800),
-        ),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-      ),
+      appBar: widget.embedded
+          ? null
+          : AppBar(
+              title: const Text(
+                '건강관리',
+                style: TextStyle(
+                  color: AppColors.navy,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
+            ),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(
