@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_preferences.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../reservation/model/booking_options.dart';
 import '../../reservation/repository/reservation_repository.dart';
 import '../../verification/view/phone_verification_screen.dart';
@@ -11,9 +12,13 @@ class PatientServicesScreen extends StatefulWidget {
     super.key,
     required this.repository,
     this.section = 'menu',
+    this.embedded = false,
+    this.patientName,
   });
   final ReservationRepository repository;
   final String section;
+  final bool embedded;
+  final String? patientName;
   @override
   State<PatientServicesScreen> createState() => _PatientServicesScreenState();
 }
@@ -176,13 +181,10 @@ class _PatientServicesScreenState extends State<PatientServicesScreen> {
       }
       if (!mounted) return;
       setState(() => saving = false);
-      await write(
-        () async {
-          await api.requestLink(verification!.id);
-          linkRequested = true;
-        },
-        '연결 요청이 접수됐어요. 연결 상태를 다시 확인해 주세요.',
-      );
+      await write(() async {
+        await api.requestLink(verification!.id);
+        linkRequested = true;
+      }, '연결 요청이 접수됐어요. 연결 상태를 다시 확인해 주세요.');
     } catch (e) {
       if (mounted) setState(() => error = patientServiceError(e));
     } finally {
@@ -200,17 +202,54 @@ class _PatientServicesScreenState extends State<PatientServicesScreen> {
     'WITHDRAWN' => '철회',
     _ => value?.toString() ?? '상태 확인 필요',
   };
-  Widget tile(String title, String sub, IconData icon, VoidCallback action) =>
-      Card(
-        child: ListTile(
-          leading: Icon(icon),
-          title: Text(title),
-          subtitle: Text(sub),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: action,
+  Widget tile(
+    String title,
+    String sub,
+    IconData icon,
+    VoidCallback action,
+  ) => Container(
+    margin: const EdgeInsets.only(bottom: 12),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: const Color(0xFFE5ECF8)),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x0A1E3A8A),
+          blurRadius: 12,
+          offset: Offset(0, 4),
         ),
-      );
-
+      ],
+    ),
+    child: ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+      leading: Container(
+        width: 42,
+        height: 42,
+        decoration: const BoxDecoration(
+          color: Color(0xFFEFF6FF),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: AppColors.blue),
+      ),
+      title: Text(
+        title,
+        style: const TextStyle(
+          color: AppColors.text,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: 3),
+        child: Text(
+          sub,
+          style: const TextStyle(color: AppColors.mutedText, fontSize: 12),
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.blue),
+      onTap: action,
+    ),
+  );
   @override
   Widget build(BuildContext context) {
     const titles = {
@@ -223,20 +262,23 @@ class _PatientServicesScreenState extends State<PatientServicesScreen> {
       'settings': '화면 · 접근성 설정',
     };
     return Scaffold(
-      appBar: AppBar(
-        title: Text(titles[widget.section] ?? '내 정보'),
-        actions: [
-          if (widget.section != 'menu' && widget.section != 'settings')
-            IconButton(
-              tooltip: '새로고침',
-              onPressed: loading || saving ? null : () => _load(),
-              icon: const Icon(Icons.refresh),
+      appBar: widget.embedded
+          ? null
+          : AppBar(
+              title: Text(titles[widget.section] ?? '내 정보'),
+              actions: [
+                if (widget.section != 'menu' && widget.section != 'settings')
+                  IconButton(
+                    tooltip: '새로고침',
+                    onPressed: loading || saving ? null : () => _load(),
+                    icon: const Icon(Icons.refresh),
+                  ),
+              ],
             ),
-        ],
-      ),
       body: SafeArea(
+        top: !widget.embedded,
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.fromLTRB(20, widget.embedded ? 10 : 20, 20, 20),
           children: [
             if (loading) const LinearProgressIndicator(),
             if (error != null)
@@ -265,6 +307,61 @@ class _PatientServicesScreenState extends State<PatientServicesScreen> {
     switch (widget.section) {
       case 'menu':
         return [
+          Container(
+            margin: const EdgeInsets.only(bottom: 20),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFE8F2FF), Color(0xFFF5F8FF)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 58,
+                  height: 58,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.person_rounded,
+                    color: AppColors.blue,
+                    size: 31,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.patientName?.trim().isNotEmpty == true
+                            ? widget.patientName!.trim() + '\uB2D8'
+                            : '\uB0B4 \uC815\uBCF4',
+                        style: const TextStyle(
+                          color: AppColors.navy,
+                          fontSize: 19,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        '\uD544\uC694\uD55C \uC815\uBCF4\uB97C \uD655\uC778\uD558\uACE0 \uAD00\uB9AC\uD574\uC694.',
+                        style: TextStyle(
+                          color: AppColors.mutedText,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
           tile(
             '내 환자정보',
             '병원에 등록된 정보 조회 · 변경 요청',
@@ -437,7 +534,8 @@ class _PatientServicesScreenState extends State<PatientServicesScreen> {
       case 'link':
         final linked = data?['linked'] == true;
         final request = data?['link_request'];
-        final pending = linkRequested || (request is Map && request['status'] == 'PENDING');
+        final pending =
+            linkRequested || (request is Map && request['status'] == 'PENDING');
         return [
           if (data != null) ...[
             Icon(
