@@ -21,10 +21,14 @@ class HealthCheckInScreen extends StatefulWidget {
     super.key,
     required this.repository,
     required this.mission,
+    required this.breathMission,
   });
 
   final HealthMissionRepository repository;
   final PatientHealthMission mission;
+
+  // 체크인 안의 1분 호흡 수행을 별도 DAILY_BREATH 미션으로 기록한다.
+  final PatientHealthMission breathMission;
 
   @override
   State<HealthCheckInScreen> createState() => _HealthCheckInScreenState();
@@ -41,8 +45,17 @@ class _HealthCheckInScreenState extends State<HealthCheckInScreen> {
   int _phaseSecondsLeft = 4;
   bool _running = false;
   bool _breathingDone = false;
+  bool _breathingSynced = false;
   bool _submitting = false;
+  Future<bool>? _breathingSyncFuture;
   _BreathingPhase _phase = _BreathingPhase.ready;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _breathingSynced = widget.breathMission.isCompleted;
+  }
 
   @override
   void dispose() {
@@ -63,6 +76,64 @@ class _HealthCheckInScreenState extends State<HealthCheckInScreen> {
     }
 
     setState(() => _step = 1);
+  }
+
+  Future<bool> _syncBreathingMission({bool showError = true}) async {
+    if (_breathingSynced || widget.breathMission.isCompleted) {
+      _breathingSynced = true;
+      return true;
+    }
+
+    try {
+      await widget.repository.saveMissionLog(
+        missionId: widget.breathMission.id,
+        activityDate: DateTime.now(),
+        achievedValue: 1,
+        note: '보미와 1분 호흡 완료',
+      );
+
+      await widget.repository.completeMission(widget.breathMission.id);
+
+      _breathingSynced = true;
+      return true;
+    } catch (error) {
+      if (mounted && showError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '1분 호흡은 완료했지만 기록 동기화에 실패했어요. '
+              '${healthMissionErrorMessage(error)}',
+            ),
+          ),
+        );
+      }
+
+      return false;
+    }
+  }
+
+  Future<bool> _ensureBreathingMissionSynced({bool showError = true}) {
+    if (_breathingSynced || widget.breathMission.isCompleted) {
+      return Future<bool>.value(true);
+    }
+
+    final existing = _breathingSyncFuture;
+
+    if (existing != null) {
+      return existing;
+    }
+
+    final future = _syncBreathingMission(showError: showError);
+
+    _breathingSyncFuture = future;
+
+    future.whenComplete(() {
+      if (identical(_breathingSyncFuture, future)) {
+        _breathingSyncFuture = null;
+      }
+    });
+
+    return future;
   }
 
   void _startBreathing() {
@@ -89,6 +160,10 @@ class _HealthCheckInScreenState extends State<HealthCheckInScreen> {
           _running = false;
           _breathingDone = true;
         });
+
+        // 60초를 실제로 마친 순간 호흡 미션을 즉시 서버에 반영한다.
+        unawaited(_ensureBreathingMissionSynced());
+
         return;
       }
 
@@ -131,6 +206,27 @@ class _HealthCheckInScreenState extends State<HealthCheckInScreen> {
     setState(() => _submitting = true);
 
     try {
+      // 60초 완료 직후 동기화가 실패했거나 아직 진행 중이라면
+      // 체크인 완료 전에 DAILY_BREATH 기록을 한 번 더 보장한다.
+      if (_breathingDone) {
+        final breathSynced = await _ensureBreathingMissionSynced(
+          showError: false,
+        );
+
+        if (!breathSynced) {
+          if (!mounted) return;
+
+          setState(() => _submitting = false);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('1분 호흡 기록을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.'),
+            ),
+          );
+          return;
+        }
+      }
+
       await widget.repository.saveMissionLog(
         missionId: widget.mission.id,
         activityDate: DateTime.now(),

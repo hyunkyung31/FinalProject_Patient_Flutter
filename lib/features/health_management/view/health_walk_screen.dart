@@ -4,10 +4,19 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../model/health_mission.dart';
+import '../repository/health_mission_repository.dart';
 import '../service/health_connect_service.dart';
 
 class HealthWalkScreen extends StatefulWidget {
-  const HealthWalkScreen({super.key});
+  const HealthWalkScreen({
+    super.key,
+    required this.repository,
+    required this.mission,
+  });
+
+  final HealthMissionRepository repository;
+  final PatientHealthMission mission;
 
   @override
   State<HealthWalkScreen> createState() => _HealthWalkScreenState();
@@ -117,6 +126,33 @@ class _HealthWalkScreenState extends State<HealthWalkScreen>
     _animatePathTo(previewSteps / _goalSteps, targetSteps: previewSteps);
   }
 
+  Future<void> _syncRealStepsToMission(int steps) async {
+    try {
+      // Health Connect에서 실제로 읽은 오늘 걸음 수만 서버에 저장한다.
+      // Debug 미리보기용 걸음 수는 이 메서드를 호출하지 않는다.
+      await widget.repository.saveMissionLog(
+        missionId: widget.mission.id,
+        activityDate: DateTime.now(),
+        achievedValue: steps.toDouble(),
+        note: 'Health Connect 오늘 걸음 수 자동 동기화',
+      );
+
+      final target = widget.mission.healthMission.targetValue;
+
+      if (target != null && steps >= target) {
+        // 5,000걸음 목표 달성 시 DAILY_WALK 미션 자체도 완료 처리한다.
+        // DAILY_WALK 보상은 현재 0P이며 빙고 보상과는 별도다.
+        await widget.repository.completeMission(widget.mission.id);
+      }
+    } catch (_) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('걸음 수는 확인했지만 건강관리 기록 동기화에 실패했어요.')),
+      );
+    }
+  }
+
   Future<void> _loadSteps() async {
     if (_loading) return;
 
@@ -130,6 +166,15 @@ class _HealthWalkScreenState extends State<HealthWalkScreen>
       _isPreviewMode = false;
       _result = result;
       _lastUpdatedAt = result.isReady ? DateTime.now() : _lastUpdatedAt;
+    });
+
+    if (result.isReady) {
+      await _syncRealStepsToMission(result.steps ?? 0);
+
+      if (!mounted) return;
+    }
+
+    setState(() {
       _loading = false;
     });
 
