@@ -19,12 +19,9 @@ import '../../bomi_studio/repository/bomi_studio_repository.dart';
 import '../../bomi_studio/view/bomi_studio_screen.dart';
 import '../../prescription/repository/patient_prescription_repository.dart';
 import '../../prescription/view/patient_prescription_list_screen.dart';
-import '../../ai_result/repository/patient_ai_result_repository.dart';
-import '../../ai_result/view/patient_ai_result_list_screen.dart';
-import '../../lab_result/repository/lab_result_repository.dart';
-import '../../lab_result/view/lab_result_list_screen.dart';
 import '../../patient_report/repository/patient_report_repository.dart';
 import '../../patient_report/view/patient_report_list_screen.dart';
+import 'patient_result_hub_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({
@@ -62,10 +59,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       case 1:
         if (widget.patientLinked == true && repository != null) {
-          return LabResultListScreen(
-            repository: PatientLabResultRepository(repository.client),
-            embedded: true,
-          );
+          return PatientResultHubScreen(repository: repository);
         }
 
         if (repository != null) {
@@ -363,12 +357,7 @@ class _DashboardHome extends StatelessWidget {
     final repository = reservationRepository;
     if (patientLinked == true && repository != null) {
       final Widget? screen = switch (title) {
-        '검사결과' => LabResultListScreen(
-          repository: PatientLabResultRepository(repository.client),
-        ),
-        'AI 결과' => PatientAIResultListScreen(
-          repository: PatientAIResultRepository(repository.client),
-        ),
+        '검사결과' => PatientResultHubScreen(repository: repository),
         '리포트' => PatientReportListScreen(
           repository: PatientReportRepository(repository.client),
         ),
@@ -413,27 +402,13 @@ class _DashboardHome extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 patientLinked == false &&
-                        [
-                          '검사결과',
-                          'AI 결과',
-                          '리포트',
-                          '처방 조회',
-                          '리워드',
-                          '건강관리',
-                        ].contains(title)
+                        ['검사결과', '리포트', '처방 조회', '리워드', '건강관리'].contains(title)
                     ? '병원기록 연결 후 확인할 수 있어요. 조회 화면은 준비 중이에요.'
                     : '이 기능은 준비 중이에요.',
               ),
               if (patientLinked == false &&
                   reservationRepository != null &&
-                  [
-                    '검사결과',
-                    'AI 결과',
-                    '리포트',
-                    '처방 조회',
-                    '리워드',
-                    '건강관리',
-                  ].contains(title))
+                  ['검사결과', '리포트', '처방 조회', '리워드', '건강관리'].contains(title))
                 TextButton(
                   onPressed: () {
                     Navigator.pop(context);

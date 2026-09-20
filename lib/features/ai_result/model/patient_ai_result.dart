@@ -3,6 +3,7 @@ class PatientAIResult {
   const PatientAIResult({
     required this.id,
     required this.analysisId,
+    this.analysisType = '',
     required this.resultType,
     required this.summaryText,
     required this.confidence,
@@ -17,6 +18,7 @@ class PatientAIResult {
 
   final int id;
   final int analysisId;
+  final String analysisType;
   final String resultType;
   final String summaryText;
   final double? confidence;
@@ -34,6 +36,7 @@ class PatientAIResult {
     return PatientAIResult(
       id: _requiredInt(json['id'], 'id'),
       analysisId: _requiredInt(json['analysis_id'], 'analysis_id'),
+      analysisType: json['analysis_type']?.toString() ?? '',
       resultType: json['result_type']?.toString() ?? '',
       summaryText: json['summary_text']?.toString() ?? '',
       confidence: _nullableDouble(json['confidence']),

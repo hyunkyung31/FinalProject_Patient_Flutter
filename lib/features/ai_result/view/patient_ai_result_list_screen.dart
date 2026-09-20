@@ -7,9 +7,22 @@ import 'patient_ai_result_detail_screen.dart';
 
 // 의료진이 공개한 환자 AI 결과 목록 화면
 class PatientAIResultListScreen extends StatefulWidget {
-  const PatientAIResultListScreen({super.key, required this.repository});
+  const PatientAIResultListScreen({
+    super.key,
+    required this.repository,
+    this.analysisType,
+    this.title = 'AI 분석 결과',
+    this.emptyTitle = '공개된 AI 분석 결과가 없어요.',
+    this.emptyMessage = '의료진 검토 후 공개된 결과가 있으면 이곳에서 확인할 수 있어요.',
+  });
 
   final PatientAIResultRepository repository;
+
+  // 검사결과 허브에서 XCA/CCTA 결과만 선택적으로 표시한다.
+  final String? analysisType;
+  final String title;
+  final String emptyTitle;
+  final String emptyMessage;
 
   @override
   State<PatientAIResultListScreen> createState() =>
@@ -22,12 +35,28 @@ class _PatientAIResultListScreenState extends State<PatientAIResultListScreen> {
   @override
   void initState() {
     super.initState();
-    _results = widget.repository.getResults();
+    _results = _loadResults();
+  }
+
+  // 전체 공개 결과 중 요청된 분석 유형만 선택적으로 남긴다.
+  Future<List<PatientAIResult>> _loadResults() async {
+    final results = await widget.repository.getResults();
+    final analysisType = widget.analysisType?.trim().toUpperCase();
+
+    if (analysisType == null || analysisType.isEmpty) {
+      return results;
+    }
+
+    return results
+        .where(
+          (result) => result.analysisType.trim().toUpperCase() == analysisType,
+        )
+        .toList();
   }
 
   // AI 결과 목록 새로고침
   Future<void> _reload() async {
-    final future = widget.repository.getResults();
+    final future = _loadResults();
 
     setState(() {
       _results = future;
@@ -57,7 +86,7 @@ class _PatientAIResultListScreenState extends State<PatientAIResultListScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('AI 분석 결과'),
+        title: Text(widget.title),
         actions: [
           IconButton(
             tooltip: '새로고침',
@@ -83,7 +112,11 @@ class _PatientAIResultListScreenState extends State<PatientAIResultListScreen> {
           final results = snapshot.data ?? const <PatientAIResult>[];
 
           if (results.isEmpty) {
-            return _EmptyView(onRefresh: _reload);
+            return _EmptyView(
+              title: widget.emptyTitle,
+              message: widget.emptyMessage,
+              onRefresh: _reload,
+            );
           }
 
           return RefreshIndicator(
@@ -188,8 +221,14 @@ class _PatientAIResultListScreenState extends State<PatientAIResultListScreen> {
 
 // 공개된 AI 결과가 없을 때 표시
 class _EmptyView extends StatelessWidget {
-  const _EmptyView({required this.onRefresh});
+  const _EmptyView({
+    required this.title,
+    required this.message,
+    required this.onRefresh,
+  });
 
+  final String title;
+  final String message;
   final Future<void> Function() onRefresh;
 
   @override
@@ -199,20 +238,24 @@ class _EmptyView extends StatelessWidget {
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(32),
-        children: const [
-          SizedBox(height: 100),
-          Icon(Icons.insights_outlined, size: 56, color: AppColors.mutedText),
+        children: [
+          const SizedBox(height: 100),
+          const Icon(
+            Icons.insights_outlined,
+            size: 56,
+            color: AppColors.mutedText,
+          ),
           SizedBox(height: 18),
           Text(
-            '공개된 AI 분석 결과가 없어요.',
+            title,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
           ),
-          SizedBox(height: 8),
+          const SizedBox(height: 8),
           Text(
-            '의료진 검토 후 공개된 결과가 있으면 이곳에서 확인할 수 있어요.',
+            message,
             textAlign: TextAlign.center,
-            style: TextStyle(height: 1.5, color: AppColors.mutedText),
+            style: const TextStyle(height: 1.5, color: AppColors.mutedText),
           ),
         ],
       ),
