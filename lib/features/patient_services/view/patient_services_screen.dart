@@ -14,11 +14,13 @@ class PatientServicesScreen extends StatefulWidget {
     this.section = 'menu',
     this.embedded = false,
     this.patientName,
+    this.onLogout,
   });
   final ReservationRepository repository;
   final String section;
   final bool embedded;
   final String? patientName;
+  final Future<void> Function()? onLogout;
   @override
   State<PatientServicesScreen> createState() => _PatientServicesScreenState();
 }
@@ -59,7 +61,11 @@ class _PatientServicesScreenState extends State<PatientServicesScreen> {
 
   Future<void> _load({bool next = false}) async {
     if (loading) return;
-    if (widget.section == 'menu' || widget.section == 'settings') return;
+    if (widget.section == 'menu' ||
+        widget.section == 'settings' ||
+        widget.section == 'app_settings') {
+      return;
+    }
     setState(() {
       loading = true;
       error = null;
@@ -101,6 +107,7 @@ class _PatientServicesScreenState extends State<PatientServicesScreen> {
       builder: (_) => PatientServicesScreen(
         repository: widget.repository,
         section: section,
+        onLogout: widget.onLogout,
       ),
     ),
   );
@@ -271,7 +278,9 @@ class _PatientServicesScreenState extends State<PatientServicesScreen> {
           : AppBar(
               title: Text(titles[widget.section] ?? '내 정보'),
               actions: [
-                if (widget.section != 'menu' && widget.section != 'settings')
+                if (widget.section != 'menu' &&
+                    widget.section != 'settings' &&
+                    widget.section != 'app_settings')
                   IconButton(
                     tooltip: '새로고침',
                     onPressed: loading || saving ? null : () => _load(),
@@ -399,10 +408,10 @@ class _PatientServicesScreenState extends State<PatientServicesScreen> {
       ),
       if (includeSettingsShortcut)
         tile(
-          '화면 · 접근성',
-          '글자 크기 · 테마 · 대비 · 모션',
-          Icons.settings_accessibility,
-          () => open('settings'),
+          '\uC571 \uC124\uC815',
+          '\uB2E4\uD06C \uBAA8\uB4DC \u00B7 \uB300\uBE44 \u00B7 \uAE00\uC790 \uD06C\uAE30',
+          Icons.settings_outlined,
+          () => open('app_settings'),
         ),
     ];
   }
@@ -881,27 +890,36 @@ class _PatientServicesScreenState extends State<PatientServicesScreen> {
             ),
         ];
       case 'settings':
+        return _buildMyInfoSection(
+          summarySubtitle:
+              '\uB0B4 \uC815\uBCF4\uC640 \uC571 \uC0AC\uC6A9 \uD658\uACBD\uC744 \uAD00\uB9AC\uD574\uC694.',
+        );
+      case 'app_settings':
+        final scheme = Theme.of(context).colorScheme;
         return [
-          ..._buildMyInfoSection(
-            includeSettingsShortcut: false,
-            summarySubtitle: '내 정보와 앱 사용 환경을 한곳에서 관리해요.',
-          ),
-          const SizedBox(height: 18),
-          const Align(
-            alignment: Alignment.centerLeft,
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(4, 0, 4, 10),
-              child: Text(
-                '앱 설정',
-                style: TextStyle(
-                  color: AppColors.navy,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ),
           _buildAccessibilitySettingsPanel(),
+          const SizedBox(height: 24),
+          if (widget.onLogout != null)
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                foregroundColor: scheme.error,
+                side: BorderSide(color: scheme.error),
+              ),
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final accepted = await confirm(
+                        '\uB85C\uADF8\uC544\uC6C3\uD560\uAE4C\uC694?',
+                        '\uD604\uC7AC \uACC4\uC815\uC5D0\uC11C \uB85C\uADF8\uC544\uC6C3\uB429\uB2C8\uB2E4.',
+                      );
+                      if (accepted && mounted) {
+                        await widget.onLogout!.call();
+                      }
+                    },
+              icon: const Icon(Icons.logout_rounded),
+              label: const Text('\uB85C\uADF8\uC544\uC6C3'),
+            ),
         ];
       default:
         return [];
