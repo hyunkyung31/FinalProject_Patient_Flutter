@@ -5,8 +5,6 @@ import '../../ai_result/repository/patient_ai_result_repository.dart';
 import '../../ai_result/view/patient_ai_result_list_screen.dart';
 import '../../lab_result/repository/lab_result_repository.dart';
 import '../../lab_result/view/lab_result_list_screen.dart';
-import '../../patient_report/repository/patient_report_repository.dart';
-import '../../patient_report/view/patient_report_list_screen.dart';
 import '../../reservation/repository/reservation_repository.dart';
 
 class PatientResultHubScreen extends StatelessWidget {
@@ -41,11 +39,11 @@ class PatientResultHubScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // 검사 결과
+          // 혈액검사 결과
           _ResultMenuCard(
             icon: Icons.science_outlined,
-            title: '검사 결과',
-            subtitle: '혈액검사 및 검사 결과 확인',
+            title: '혈액검사',
+            subtitle: '혈액검사 항목과 결과를 확인해요.',
             onTap: () => _open(
               context,
               LabResultListScreen(
@@ -54,28 +52,36 @@ class PatientResultHubScreen extends StatelessWidget {
             ),
           ),
 
-          // AI 분석 결과
+          // 2D 관상동맥조영술(XCA) 결과
           _ResultMenuCard(
-            icon: Icons.insights_outlined,
-            title: 'AI 분석 결과',
-            subtitle: '공개된 AI 분석 결과와 설명 확인',
+            icon: Icons.monitor_heart_outlined,
+            title: '혈관조영술',
+            subtitle: '공개된 관상동맥조영술 분석 결과를 확인해요.',
             onTap: () => _open(
               context,
               PatientAIResultListScreen(
                 repository: PatientAIResultRepository(repository.client),
+                analysisType: 'ANGIO_2D',
+                title: '혈관조영술',
+                emptyTitle: '공개된 혈관조영술 결과가 없어요.',
+                emptyMessage: '검사 이력이 없거나 아직 의료진 검토·공개 전일 수 있어요.',
               ),
             ),
           ),
 
-          // 환자용 PDF 리포트
+          // 관상동맥 CT(CCTA) 결과
           _ResultMenuCard(
-            icon: Icons.picture_as_pdf_outlined,
-            title: '환자 리포트',
-            subtitle: '최종 결과와 PDF 리포트 확인',
+            icon: Icons.view_in_ar_rounded,
+            title: '혈관 CT',
+            subtitle: '공개된 혈관 CT 분석 결과를 확인해요.',
             onTap: () => _open(
               context,
-              PatientReportListScreen(
-                repository: PatientReportRepository(repository.client),
+              PatientAIResultListScreen(
+                repository: PatientAIResultRepository(repository.client),
+                analysisType: 'CCTA',
+                title: '혈관 CT',
+                emptyTitle: '공개된 혈관 CT 결과가 없어요.',
+                emptyMessage: '검사 이력이 없거나 아직 공개 전일 수 있어요.',
               ),
             ),
           ),
