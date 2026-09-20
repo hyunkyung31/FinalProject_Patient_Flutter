@@ -202,54 +202,57 @@ class _PatientServicesScreenState extends State<PatientServicesScreen> {
     'WITHDRAWN' => '철회',
     _ => value?.toString() ?? '상태 확인 필요',
   };
-  Widget tile(
-    String title,
-    String sub,
-    IconData icon,
-    VoidCallback action,
-  ) => Container(
-    margin: const EdgeInsets.only(bottom: 12),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: const Color(0xFFE5ECF8)),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x0A1E3A8A),
-          blurRadius: 12,
-          offset: Offset(0, 4),
-        ),
-      ],
-    ),
-    child: ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-      leading: Container(
-        width: 42,
-        height: 42,
-        decoration: const BoxDecoration(
-          color: Color(0xFFEFF6FF),
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: AppColors.blue),
+  Widget tile(String title, String sub, IconData icon, VoidCallback action) {
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: scheme.outlineVariant),
+        boxShadow: dark
+            ? const []
+            : const [
+                BoxShadow(
+                  color: Color(0x0A1E3A8A),
+                  blurRadius: 12,
+                  offset: Offset(0, 4),
+                ),
+              ],
       ),
-      title: Text(
-        title,
-        style: const TextStyle(
-          color: AppColors.text,
-          fontWeight: FontWeight.w800,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+        leading: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: scheme.secondaryContainer,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: scheme.primary),
         ),
-      ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 3),
-        child: Text(
-          sub,
-          style: const TextStyle(color: AppColors.mutedText, fontSize: 12),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: scheme.onSurface,
+            fontWeight: FontWeight.w800,
+          ),
         ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 3),
+          child: Text(
+            sub,
+            style: TextStyle(color: scheme.onSurfaceVariant, fontSize: 12),
+          ),
+        ),
+        trailing: Icon(Icons.chevron_right_rounded, color: scheme.primary),
+        onTap: action,
       ),
-      trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.blue),
-      onTap: action,
-    ),
-  );
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     const titles = {
@@ -262,6 +265,7 @@ class _PatientServicesScreenState extends State<PatientServicesScreen> {
       'settings': '내 정보 · 설정',
     };
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: widget.embedded
           ? null
           : AppBar(
@@ -308,13 +312,18 @@ class _PatientServicesScreenState extends State<PatientServicesScreen> {
     bool includeSettingsShortcut = true,
     String summarySubtitle = '필요한 정보를 확인하고 관리해요.',
   }) {
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+
     return [
       Container(
         margin: const EdgeInsets.only(bottom: 20),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFE8F2FF), Color(0xFFF5F8FF)],
+          gradient: LinearGradient(
+            colors: dark
+                ? const [Color(0xFF1C3154), Color(0xFF17263E)]
+                : const [Color(0xFFE8F2FF), Color(0xFFF5F8FF)],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -344,8 +353,8 @@ class _PatientServicesScreenState extends State<PatientServicesScreen> {
                     widget.patientName?.trim().isNotEmpty == true
                         ? '${widget.patientName!.trim()}님'
                         : '내 정보',
-                    style: const TextStyle(
-                      color: AppColors.navy,
+                    style: TextStyle(
+                      color: scheme.onSurface,
                       fontSize: 19,
                       fontWeight: FontWeight.w900,
                     ),
@@ -353,8 +362,8 @@ class _PatientServicesScreenState extends State<PatientServicesScreen> {
                   const SizedBox(height: 4),
                   Text(
                     summarySubtitle,
-                    style: const TextStyle(
-                      color: AppColors.mutedText,
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
                       fontSize: 12,
                     ),
                   ),
@@ -405,60 +414,153 @@ class _PatientServicesScreenState extends State<PatientServicesScreen> {
       listenable: AppPreferences.instance,
       builder: (context, _) {
         final settings = AppPreferences.instance;
+        final scheme = Theme.of(context).colorScheme;
 
         Future<void> save(Future<void> Function() action) async {
           setState(() => saving = true);
           try {
             await action();
           } catch (_) {
-            if (mounted) message('화면 설정을 저장하지 못했어요.');
+            if (mounted) {
+              message(
+                '\uD654\uBA74 \uC124\uC815\uC744 \uC800\uC7A5\uD558\uC9C0 \uBABB\uD588\uC5B4\uC694.',
+              );
+            }
           } finally {
             if (mounted) setState(() => saving = false);
           }
         }
 
-        return Column(
-          children: [
-            if (settings.error != null) Text(settings.error!),
-            SwitchListTile(
-              title: const Text('다크 모드'),
-              value: settings.dark,
-              onChanged: saving
-                  ? null
-                  : (v) => save(() => settings.save(dark: v)),
-            ),
-            SwitchListTile(
-              title: const Text('높은 대비'),
-              value: settings.highContrast,
-              onChanged: saving
-                  ? null
-                  : (v) => save(() => settings.save(highContrast: v)),
-            ),
-            SwitchListTile(
-              title: const Text('모션 줄이기'),
-              value: settings.reduceMotion,
-              onChanged: saving
-                  ? null
-                  : (v) => save(() => settings.save(reduceMotion: v)),
-            ),
-            const Text('글자 크기'),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final scale in [1.0, 1.2, 1.5])
-                  ChoiceChip(
-                    label: Text('${(scale * 100).round()}%'),
-                    selected: settings.textScale == scale,
-                    onSelected: saving
-                        ? null
-                        : (_) => save(() => settings.save(textScale: scale)),
+        return Container(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 16),
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+                child: Text(
+                  '\uD654\uBA74 \uC124\uC815',
+                  style: TextStyle(
+                    color: scheme.onSurface,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
                   ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Text('설정은 이 기기에 저장돼요. 휴대폰의 글자 크기 설정도 함께 적용됩니다.'),
-          ],
+                ),
+              ),
+              SwitchListTile(
+                secondary: Icon(
+                  Icons.dark_mode_outlined,
+                  color: scheme.primary,
+                ),
+                title: Text(
+                  '\uB2E4\uD06C \uBAA8\uB4DC',
+                  style: TextStyle(
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                subtitle: Text(
+                  '\uB0AE\uC5D0\uB294 \uBC1D\uAC8C, \uBC24\uC5D0\uB294 \uC5B4\uB461\uAC8C \uD45C\uC2DC\uD574\uC694.',
+                  style: TextStyle(
+                    color: scheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
+                ),
+                value: settings.dark,
+                onChanged: saving
+                    ? null
+                    : (value) => save(() => settings.save(dark: value)),
+              ),
+              Divider(height: 1, color: scheme.outlineVariant),
+              SwitchListTile(
+                secondary: Icon(Icons.contrast_outlined, color: scheme.primary),
+                title: Text(
+                  '\uB192\uC740 \uB300\uBE44',
+                  style: TextStyle(
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                subtitle: Text(
+                  '\uAE00\uC790\uC640 \uBC84\uD2BC\uC758 \uB300\uBE44\uB97C \uB192\uC5EC\uC694.',
+                  style: TextStyle(
+                    color: scheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
+                ),
+                value: settings.highContrast,
+                onChanged: saving
+                    ? null
+                    : (value) => save(() => settings.save(highContrast: value)),
+              ),
+              Divider(height: 1, color: scheme.outlineVariant),
+              SwitchListTile(
+                secondary: Icon(
+                  Icons.motion_photos_off_outlined,
+                  color: scheme.primary,
+                ),
+                title: Text(
+                  '\uBAA8\uC158 \uC904\uC774\uAE30',
+                  style: TextStyle(
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                subtitle: Text(
+                  '\uD654\uBA74 \uC804\uD658 \uD6A8\uACFC\uB97C \uC904\uC5EC\uC694.',
+                  style: TextStyle(
+                    color: scheme.onSurfaceVariant,
+                    fontSize: 12,
+                  ),
+                ),
+                value: settings.reduceMotion,
+                onChanged: saving
+                    ? null
+                    : (value) => save(() => settings.save(reduceMotion: value)),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                child: Text(
+                  '\uAE00\uC790 \uD06C\uAE30',
+                  style: TextStyle(
+                    color: scheme.onSurface,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final scale in [1.0, 1.2, 1.5])
+                      ChoiceChip(
+                        label: Text('${(scale * 100).round()}%'),
+                        selected: settings.textScale == scale,
+                        onSelected: saving
+                            ? null
+                            : (_) =>
+                                  save(() => settings.save(textScale: scale)),
+                      ),
+                  ],
+                ),
+              ),
+              if (settings.error != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: Text(
+                    settings.error!,
+                    style: TextStyle(color: scheme.error, fontSize: 12),
+                  ),
+                ),
+            ],
+          ),
         );
       },
     );

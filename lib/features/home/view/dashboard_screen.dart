@@ -122,12 +122,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Column(
         children: [
           _PersistentTopBar(
             repository: widget.reservationRepository,
-            onLogout: widget.onLogout,
             tinted: _selectedIndex == 2,
           ),
           Expanded(
@@ -139,8 +138,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
       bottomNavigationBar: NavigationBar(
-        backgroundColor: Colors.white,
-        indicatorColor: AppColors.lightBlue,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        indicatorColor: Theme.of(context).colorScheme.secondaryContainer,
         selectedIndex: _selectedIndex,
         onDestinationSelected: _selectTab,
         destinations: const [
@@ -176,18 +175,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
 }
 
 class _PersistentTopBar extends StatelessWidget {
-  const _PersistentTopBar({
-    required this.repository,
-    required this.onLogout,
-    required this.tinted,
-  });
+  const _PersistentTopBar({required this.repository, required this.tinted});
 
   final ReservationRepository? repository;
-  final Future<void> Function()? onLogout;
   final bool tinted;
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+
     return Material(
       color: Colors.transparent,
       child: SafeArea(
@@ -197,16 +194,18 @@ class _PersistentTopBar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             gradient: tinted
-                ? const LinearGradient(
-                    colors: [Color(0xFFDCEBFF), Color(0xFFE9E5FF)],
+                ? LinearGradient(
+                    colors: dark
+                        ? const [Color(0xFF17294A), Color(0xFF202A4B)]
+                        : const [Color(0xFFE8EEFF), Color(0xFFF0F2FB)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   )
                 : null,
-            color: tinted ? null : Colors.white,
+            color: tinted ? null : scheme.surface,
             border: tinted
                 ? null
-                : const Border(bottom: BorderSide(color: Color(0xFFE7EDF7))),
+                : Border(bottom: BorderSide(color: scheme.outlineVariant)),
           ),
           child: Row(
             children: [
@@ -227,9 +226,9 @@ class _PersistentTopBar extends StatelessWidget {
                     ),
                   ),
                 ),
-                icon: const Icon(
+                icon: Icon(
                   Icons.help_outline_rounded,
-                  color: AppColors.navy,
+                  color: dark ? scheme.onSurface : AppColors.navy,
                 ),
               ),
               if (repository != null)
@@ -237,19 +236,13 @@ class _PersistentTopBar extends StatelessWidget {
               else
                 const SizedBox(width: 48),
               IconButton(
-                tooltip: '보미 챗봇',
+                tooltip: '\uBCF4\uBBF8 \uCC57\uBD07',
                 onPressed: ChatbotOverlayController.instance.open,
-                icon: const Icon(
+                icon: Icon(
                   Icons.chat_bubble_outline_rounded,
-                  color: AppColors.navy,
+                  color: dark ? scheme.onSurface : AppColors.navy,
                 ),
               ),
-              if (onLogout != null)
-                IconButton(
-                  tooltip: '로그아웃',
-                  onPressed: onLogout,
-                  icon: const Icon(Icons.logout_rounded, color: AppColors.navy),
-                ),
             ],
           ),
         ),

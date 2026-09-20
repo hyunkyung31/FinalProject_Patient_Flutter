@@ -17,17 +17,7 @@ class PatientLinkRequiredScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('병원기록 연결'),
-        actions: [
-          if (onLogout != null)
-            IconButton(
-              tooltip: '로그아웃',
-              onPressed: onLogout,
-              icon: const Icon(Icons.logout),
-            ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('병원기록 연결')),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
