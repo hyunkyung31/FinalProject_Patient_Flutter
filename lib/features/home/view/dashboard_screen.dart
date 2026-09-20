@@ -133,6 +133,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           _PersistentTopBar(
             repository: widget.reservationRepository,
+            onLogout: widget.onLogout,
             tinted: _selectedIndex == 2,
           ),
           Expanded(
@@ -181,9 +182,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 }
 
 class _PersistentTopBar extends StatelessWidget {
-  const _PersistentTopBar({required this.repository, required this.tinted});
+  const _PersistentTopBar({
+    required this.repository,
+    required this.onLogout,
+    required this.tinted,
+  });
 
   final ReservationRepository? repository;
+  final Future<void> Function()? onLogout;
   final bool tinted;
 
   @override
@@ -244,6 +250,12 @@ class _PersistentTopBar extends StatelessWidget {
                   color: AppColors.navy,
                 ),
               ),
+              if (onLogout != null)
+                IconButton(
+                  tooltip: '로그아웃',
+                  onPressed: onLogout,
+                  icon: const Icon(Icons.logout_rounded, color: AppColors.navy),
+                ),
             ],
           ),
         ),
