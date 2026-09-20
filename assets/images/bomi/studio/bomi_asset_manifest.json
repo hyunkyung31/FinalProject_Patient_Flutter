@@ -1,0 +1,609 @@
+{
+  "assets": [
+    {
+      "file": "bomi_base_default.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "source_rect": [
+        293,
+        114,
+        656,
+        1044
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "label": "기본 보미",
+      "kind": "base",
+      "target_rect": [
+        0,
+        0,
+        1254,
+        1254
+      ]
+    },
+    {
+      "file": "wear_outfit_basic_homewear.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "source_rect": [
+        349,
+        852,
+        552,
+        321
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "label": "기본 홈웨어",
+      "kind": "outfit",
+      "target_rect": [
+        310,
+        793,
+        620,
+        320
+      ]
+    },
+    {
+      "file": "wear_outfit_pink_training_set.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "source_rect": [
+        314,
+        682,
+        626,
+        452
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "label": "핑크 운동복",
+      "kind": "outfit",
+      "target_rect": [
+        303,
+        783,
+        644,
+        333
+      ]
+    },
+    {
+      "file": "wear_outfit_blue_bunny_hoodie.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "source_rect": [
+        198,
+        598,
+        859,
+        532
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "label": "토끼 후드티",
+      "kind": "outfit",
+      "target_rect": [
+        307,
+        785,
+        630,
+        312
+      ]
+    },
+    {
+      "file": "wear_outfit_yellow_raincoat.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "source_rect": [
+        188,
+        626,
+        876,
+        486
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "label": "노란 레인코트",
+      "kind": "outfit",
+      "target_rect": [
+        308,
+        786,
+        630,
+        321
+      ]
+    },
+    {
+      "file": "acc_heart_ribbon.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "source_rect": [
+        138,
+        257,
+        1009,
+        770
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "label": "하트 리본",
+      "kind": "accessory",
+      "target_rect": [
+        747,
+        346,
+        205,
+        156
+      ]
+    },
+    {
+      "file": "acc_sprout_cap.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "source_rect": [
+        143,
+        216,
+        968,
+        774
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "label": "새싹 모자",
+      "kind": "accessory",
+      "target_rect": [
+        324,
+        85,
+        600,
+        475
+      ],
+      "hide_base_above_y": 310
+    },
+    {
+      "file": "acc_heart_sunglasses.png",
+      "size": [
+        1983,
+        793
+      ],
+      "source_rect": [
+        202,
+        152,
+        1566,
+        479
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "label": "하트 선글라스",
+      "kind": "accessory",
+      "target_rect": [
+        404,
+        548,
+        440,
+        135
+      ]
+    },
+    {
+      "file": "bg_studio_default.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "source_rect": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "alpha_range": null,
+      "label": "기본 스튜디오",
+      "kind": "background",
+      "target_rect": [
+        0,
+        0,
+        1254,
+        1254
+      ]
+    },
+    {
+      "file": "bg_park_lakeside.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "source_rect": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "alpha_range": null,
+      "label": "호숫가 공원",
+      "kind": "background",
+      "target_rect": [
+        0,
+        0,
+        1254,
+        1254
+      ]
+    },
+    {
+      "file": "bg_beach_pastel.png",
+      "size": [
+        1254,
+        1254
+      ],
+      "source_rect": [
+        0,
+        0,
+        1254,
+        1254
+      ],
+      "alpha_range": null,
+      "label": "두근 비치",
+      "kind": "background",
+      "target_rect": [
+        0,
+        0,
+        1254,
+        1254
+      ]
+    },
+    {
+      "file": "shop_outfit_pink_training_set.png",
+      "label": "핑크 운동복 썸네일",
+      "size": [
+        1254,
+        1254
+      ],
+      "kind": "thumbnail",
+      "source_rect": [
+        52,
+        211,
+        1150,
+        830
+      ],
+      "wear_file": "wear_outfit_pink_training_set.png"
+    },
+    {
+      "file": "shop_outfit_blue_bunny_hoodie.png",
+      "label": "토끼 후드티 썸네일",
+      "size": [
+        1254,
+        1254
+      ],
+      "kind": "thumbnail",
+      "source_rect": [
+        82,
+        351,
+        1090,
+        687
+      ],
+      "wear_file": "wear_outfit_blue_bunny_hoodie.png"
+    },
+    {
+      "file": "shop_outfit_yellow_raincoat.png",
+      "label": "레인코트 썸네일",
+      "size": [
+        1254,
+        1254
+      ],
+      "kind": "thumbnail",
+      "source_rect": [
+        40,
+        295,
+        1174,
+        724
+      ],
+      "wear_file": "wear_outfit_yellow_raincoat.png"
+    },
+    {
+      "file": "acc_seed_hairpin_reward.png",
+      "label": "새싹 머리핀",
+      "size": [
+        1254,
+        1254
+      ],
+      "kind": "accessory",
+      "source_rect": [
+        170,
+        251,
+        898,
+        752
+      ],
+      "target_rect": [
+        750,
+        351,
+        182,
+        151
+      ],
+      "coordinate_space": "character"
+    },
+    {
+      "file": "acc_shining_medal_reward.png",
+      "label": "반짝 메달",
+      "size": [
+        1254,
+        1254
+      ],
+      "kind": "accessory",
+      "source_rect": [
+        178,
+        240,
+        898,
+        811
+      ],
+      "target_rect": [
+        490,
+        797,
+        270,
+        237
+      ],
+      "coordinate_space": "character"
+    },
+    {
+      "file": "acc_trophy_badge_reward.png",
+      "label": "트로피 배지",
+      "size": [
+        1254,
+        1254
+      ],
+      "kind": "accessory",
+      "source_rect": [
+        266,
+        200,
+        715,
+        837
+      ],
+      "target_rect": [
+        704,
+        868,
+        88,
+        105
+      ],
+      "coordinate_space": "character"
+    },
+    {
+      "file": "deco_heart_sticker_reward.png",
+      "label": "하트 스티커",
+      "size": [
+        1254,
+        1254
+      ],
+      "kind": "decoration",
+      "source_rect": [
+        226,
+        305,
+        801,
+        655
+      ],
+      "target_rect": [
+        173,
+        391,
+        116,
+        95
+      ],
+      "coordinate_space": "scene"
+    },
+    {
+      "file": "deco_star_sticker_reward.png",
+      "label": "별 스티커",
+      "size": [
+        1254,
+        1254
+      ],
+      "kind": "decoration",
+      "source_rect": [
+        117,
+        144,
+        1018,
+        955
+      ],
+      "target_rect": [
+        998,
+        439,
+        103,
+        103
+      ],
+      "coordinate_space": "scene"
+    },
+    {
+      "file": "prop_heart_cushion.png",
+      "label": "하트 쿠션",
+      "size": [
+        1254,
+        1254
+      ],
+      "kind": "prop",
+      "source_rect": [
+        113,
+        211,
+        1079,
+        894
+      ],
+      "target_rect": [
+        75,
+        873,
+        290,
+        239
+      ],
+      "coordinate_space": "scene"
+    },
+    {
+      "file": "prop_small_plant.png",
+      "label": "작은 화분",
+      "size": [
+        1214,
+        1295
+      ],
+      "kind": "prop",
+      "source_rect": [
+        219,
+        144,
+        774,
+        1032
+      ],
+      "target_rect": [
+        900,
+        738,
+        255,
+        350
+      ],
+      "coordinate_space": "scene"
+    },
+    {
+      "file": "prop_water_bottle.png",
+      "label": "운동 물병",
+      "size": [
+        1254,
+        1254
+      ],
+      "kind": "prop",
+      "source_rect": [
+        379,
+        51,
+        624,
+        1156
+      ],
+      "target_rect": [
+        966,
+        810,
+        145,
+        269
+      ],
+      "coordinate_space": "scene"
+    },
+    {
+      "file": "prop_cloud_pillow.png",
+      "label": "구름 쿠션",
+      "size": [
+        1254,
+        1254
+      ],
+      "kind": "prop",
+      "source_rect": [
+        50,
+        277,
+        1176,
+        702
+      ],
+      "target_rect": [
+        68,
+        895,
+        315,
+        188
+      ],
+      "coordinate_space": "scene"
+    },
+    {
+      "file": "prop_trophy_stand.png",
+      "label": "트로피 장식",
+      "size": [
+        1254,
+        1254
+      ],
+      "kind": "prop",
+      "source_rect": [
+        119,
+        140,
+        1016,
+        983
+      ],
+      "target_rect": [
+        926,
+        834,
+        225,
+        223
+      ],
+      "coordinate_space": "scene"
+    },
+    {
+      "file": "prop_memo_board.png",
+      "label": "메모보드",
+      "size": [
+        1206,
+        1305
+      ],
+      "kind": "prop",
+      "source_rect": [
+        123,
+        188,
+        957,
+        983
+      ],
+      "target_rect": [
+        888,
+        790,
+        283,
+        291
+      ],
+      "coordinate_space": "scene"
+    }
+  ],
+  "scene_character_rect": [
+    175,
+    227,
+    904,
+    904
+  ],
+  "version": 4,
+  "canvas": [
+    1254,
+    1254
+  ],
+  "rect_format": "[x,y,width,height]",
+  "rendering": {
+    "dressed_base_visible_head_path": "M0 0 H1254 V700 H925 L900 725 Q885 743 870 752 Q855 768 840 776 Q825 787 810 792 Q795 800 780 804 Q765 809 750 812 Q725 817 700 819 Q675 823 650 823 L600 823 Q575 823 550 820 Q530 818 510 814 Q495 812 480 808 L450 800 Q430 792 410 779 Q392 768 380 760 Q361 747 350 737 L325 710 H0 Z",
+    "dressed_base_visible_rects": [
+      [
+        490,
+        785,
+        270,
+        135
+      ],
+      [
+        0,
+        1060,
+        1254,
+        194
+      ],
+      [
+        0,
+        968,
+        450,
+        76
+      ],
+      [
+        800,
+        968,
+        454,
+        76
+      ]
+    ],
+    "head_over_outfit": true,
+    "applies_to_outfits": [
+      "wear_outfit_basic_homewear.png",
+      "wear_outfit_pink_training_set.png",
+      "wear_outfit_blue_bunny_hoodie.png",
+      "wear_outfit_yellow_raincoat.png"
+    ]
+  }
+}
