@@ -109,6 +109,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             section: 'settings',
             embedded: true,
             patientName: widget.patientName,
+            onLogout: widget.onLogout,
           );
         }
 
