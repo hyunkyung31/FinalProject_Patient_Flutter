@@ -15,6 +15,8 @@ import '../../health_management/repository/health_mission_repository.dart';
 import '../../health_management/view/health_management_screen.dart';
 import '../../reward/repository/reward_repository.dart';
 import '../../reward/view/reward_screen.dart';
+import '../../bomi_studio/repository/bomi_studio_repository.dart';
+import '../../bomi_studio/view/bomi_studio_screen.dart';
 import '../../prescription/repository/patient_prescription_repository.dart';
 import '../../prescription/view/patient_prescription_list_screen.dart';
 import '../../ai_result/repository/patient_ai_result_repository.dart';
@@ -360,6 +362,10 @@ class _DashboardHome extends StatelessWidget {
         ),
         '처방 조회' => PatientPrescriptionListScreen(
           repository: PatientPrescriptionRepository(repository.client),
+        ),
+        '보미 스튜디오' => BomiStudioScreen(
+          repository: PatientRewardRepository(repository.client),
+          equipmentRepository: PatientBomiStudioRepository(repository.client),
         ),
         '리워드' => RewardScreen(
           repository: PatientRewardRepository(repository.client),

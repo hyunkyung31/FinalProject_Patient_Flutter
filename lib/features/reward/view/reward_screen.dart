@@ -29,6 +29,24 @@ class _RewardScreenState extends State<RewardScreen> {
 
   final Set<int> _redeemingRewardIds = <int>{};
 
+  // 보미 꾸미기 아이템은 보미 스튜디오에서만 보여준다.
+  List<RewardCatalog> get _availableRewards {
+    return (_overview?.available ?? const <RewardCatalog>[])
+        .where(
+          (reward) => !reward.rewardCode.startsWith('BOMI_'),
+        )
+        .toList();
+  }
+
+  List<PatientReward> get _acquiredRewards {
+    return (_overview?.acquired ?? const <PatientReward>[])
+        .where(
+          (reward) =>
+              !(reward.reward?.rewardCode.startsWith('BOMI_') ?? false),
+        )
+        .toList();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -181,15 +199,16 @@ class _RewardScreenState extends State<RewardScreen> {
               const SizedBox(height: 26),
               _sectionTitle(
                 title: '교환 가능한 리워드',
-                description: '건강 활동으로 모은 포인트를 사용할 수 있어요.',
+                description:
+                    '건강 활동으로 모은 포인트를 건강키트 등 리워드로 교환할 수 있어요.',
               ),
               const SizedBox(height: 14),
-              if ((_overview?.available ?? const []).isEmpty)
+              if (_availableRewards.isEmpty)
                 const _EmptyCard(
                   message: '현재 교환 가능한 리워드가 없어요.',
                 )
               else
-                ..._overview!.available.map(
+                ..._availableRewards.map(
                   (reward) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: _RewardCard(
@@ -204,15 +223,16 @@ class _RewardScreenState extends State<RewardScreen> {
               const SizedBox(height: 22),
               _sectionTitle(
                 title: '내 리워드',
-                description: '지금까지 획득한 리워드예요.',
+                description:
+                    '교환한 리워드를 확인할 수 있어요. 보미 아이템은 스튜디오에서 관리해요.',
               ),
               const SizedBox(height: 14),
-              if ((_overview?.acquired ?? const []).isEmpty)
+              if (_acquiredRewards.isEmpty)
                 const _EmptyCard(
                   message: '아직 획득한 리워드가 없어요.',
                 )
               else
-                ..._overview!.acquired.map(
+                ..._acquiredRewards.map(
                   (reward) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: _AcquiredRewardCard(reward: reward),
@@ -387,6 +407,7 @@ class _RewardCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final enoughPoints = balance >= reward.requiredPoints;
+    final isCareKit = reward.rewardCode == 'DUGN_CARE_KIT';
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -410,8 +431,10 @@ class _RewardCard extends StatelessWidget {
                   color: const Color(0xFFF2F6FC),
                   borderRadius: BorderRadius.circular(15),
                 ),
-                child: const Icon(
-                  Icons.card_giftcard_rounded,
+                child: Icon(
+                  isCareKit
+                      ? Icons.health_and_safety_rounded
+                      : Icons.card_giftcard_rounded,
                   color: AppColors.navy,
                 ),
               ),
@@ -420,6 +443,27 @@ class _RewardCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (isCareKit) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEAF7EF),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: const Text(
+                          '실물 리워드',
+                          style: TextStyle(
+                            color: Color(0xFF3D8A61),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                    ],
                     Text(
                       reward.rewardName,
                       style: const TextStyle(

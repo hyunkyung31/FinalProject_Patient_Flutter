@@ -72,6 +72,7 @@ flutter:
 
   assets:
     - assets/images/bomi/
+    - assets/images/bomi/studio/
     - assets/images/reservation/backgrounds/
     - assets/images/reservation/doctors/
     - assets/images/onboarding/01_health_dashboard.png
