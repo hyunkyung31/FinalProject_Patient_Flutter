@@ -2,16 +2,21 @@ import 'package:flutter/material.dart';
 
 import '../model/patient_prescription.dart';
 import '../repository/patient_prescription_repository.dart';
+import '../widgets/medication_image.dart';
 
 class PatientPrescriptionDetailScreen extends StatefulWidget {
   const PatientPrescriptionDetailScreen({
     super.key,
     required this.repository,
     required this.prescriptionId,
+    this.embedded = false,
+    this.onBack,
   });
 
   final PatientPrescriptionRepository repository;
   final int prescriptionId;
+  final bool embedded;
+  final VoidCallback? onBack;
 
   @override
   State<PatientPrescriptionDetailScreen> createState() =>
@@ -59,9 +64,42 @@ class _PatientPrescriptionDetailScreenState
 
   @override
   Widget build(BuildContext context) {
+    final body = _buildBody();
+
+    if (widget.embedded) {
+      return ColoredBox(
+        color: const Color(0xFFF4F6FB),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 20, 0),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: widget.onBack,
+                    tooltip: '처방 목록으로',
+                    icon: const Icon(Icons.arrow_back_rounded),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '처방 상세',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(child: body),
+          ],
+        ),
+      );
+    }
+
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F6FB),
       appBar: AppBar(title: const Text('처방 상세')),
-      body: _buildBody(),
+      body: body,
     );
   }
 
@@ -99,20 +137,60 @@ class _PatientPrescriptionDetailScreenState
         padding: const EdgeInsets.all(20),
         children: [
           Card(
+            margin: EdgeInsets.zero,
+            elevation: 0,
+            surfaceTintColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+              side: BorderSide(
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          '확정된 처방',
-                          style: Theme.of(context).textTheme.titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w700),
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primaryContainer
+                              .withValues(alpha: 0.55),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Icon(
+                          Icons.receipt_long_outlined,
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '처방 정보',
+                              style: Theme.of(context).textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w800),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              '의료진이 확정한 처방입니다.',
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
@@ -123,20 +201,31 @@ class _PatientPrescriptionDetailScreenState
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: const Text(
-                          'SIGNED',
+                          '확정',
                           style: TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Text('처방일 ${_dateText(prescription.prescribedAt)}'),
-                  if (prescription.signedAt != null) ...[
-                    const SizedBox(height: 4),
-                    Text('확정일 ${_dateText(prescription.signedAt!)}'),
-                  ],
+                  const SizedBox(height: 18),
+                  _DetailRow(
+                    label: '처방일',
+                    value: _dateText(prescription.prescribedAt),
+                  ),
+                  if (prescription.signedAt != null)
+                    _DetailRow(
+                      label: '확정일',
+                      value: _dateText(prescription.signedAt!),
+                    ),
                   if (prescription.notes?.isNotEmpty == true) ...[
                     const Divider(height: 28),
+                    Text(
+                      '의료진 메모',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
                     Text(
                       prescription.notes!,
                       style: Theme.of(context).textTheme.bodyMedium,
@@ -146,19 +235,41 @@ class _PatientPrescriptionDetailScreenState
               ),
             ),
           ),
-          const SizedBox(height: 22),
-          Text(
-            '처방 약품',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '현재 유효한 처방 항목만 표시돼요.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+          const SizedBox(height: 24),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 4,
+                height: 20,
+                margin: const EdgeInsets.only(top: 2),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '처방 약품',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '현재 복용 중인 약과 복용 방법을 확인하세요.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
           if (items.isEmpty)
@@ -210,37 +321,71 @@ class _PrescriptionItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final medication = item.medication;
+    final ingredient = _patientIngredientText(medication.ingredient);
+    final scheme = Theme.of(context).colorScheme;
 
     return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      surfaceTintColor: Colors.transparent,
+      color: scheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: scheme.outlineVariant),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              medication.name,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                MedicationImage(imageUrl: medication.imageUrl, size: 76),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        medication.name,
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                      if (ingredient != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          ingredient,
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                                height: 1.4,
+                              ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
-            if (medication.ingredient?.isNotEmpty == true) ...[
-              const SizedBox(height: 3),
-              Text(
-                medication.ingredient!,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-            if (medication.strength?.isNotEmpty == true) ...[
-              const SizedBox(height: 3),
-              Text(
-                medication.strength!,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-            const Divider(height: 26),
-            _DetailRow(label: '복용량', value: _doseText(item)),
+            const Divider(height: 28),
+            Row(
+              children: [
+                Icon(Icons.schedule_rounded, size: 18, color: scheme.primary),
+                const SizedBox(width: 7),
+                Text(
+                  '복용 안내',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (_hasPatientSafeDose(item))
+              _DetailRow(label: '1회 복용량', value: _doseText(item)),
             _DetailRow(
-              label: '복용 횟수',
+              label: '하루 복용 횟수',
               value: item.frequencyPerDay == null
                   ? '안내 없음'
                   : '하루 ${item.frequencyPerDay}회',
@@ -251,10 +396,6 @@ class _PrescriptionItemCard extends StatelessWidget {
                   ? '안내 없음'
                   : '${item.durationDays}일',
             ),
-            if (item.startDate != null)
-              _DetailRow(label: '시작일', value: _dateText(item.startDate!)),
-            if (item.endDate != null)
-              _DetailRow(label: '종료일', value: _dateText(item.endDate!)),
             if (item.instructions?.isNotEmpty == true)
               _DetailRow(label: '복용 방법', value: item.instructions!),
             if (item.note?.isNotEmpty == true)
@@ -298,6 +439,114 @@ class _DetailRow extends StatelessWidget {
       ),
     );
   }
+}
+
+String? _patientIngredientText(String? value) {
+  final raw = value?.trim();
+
+  if (raw == null || raw.isEmpty) {
+    return null;
+  }
+
+  final tokens = raw
+      .split(',')
+      .map((part) => part.trim())
+      .where((part) => part.isNotEmpty)
+      .toList();
+
+  const ignoredStandards = <String>{
+    'BP',
+    'USP',
+    'KP',
+    'JP',
+    'EP',
+    '\uBCC4\uADDC',
+  };
+
+  const units = <String, String>{
+    '\uBC00\uB9AC\uADF8\uB7A8': 'mg',
+    '\uADF8\uB7A8': 'g',
+    '\uB9C8\uC774\uD06C\uB85C\uADF8\uB7A8': '\u03BCg',
+    '\uBC00\uB9AC\uB9AC\uD130': 'mL',
+  };
+
+  final result = <String>[];
+
+  for (var index = 0; index < tokens.length; index++) {
+    final token = tokens[index];
+
+    if (ignoredStandards.contains(token.toUpperCase()) ||
+        ignoredStandards.contains(token)) {
+      continue;
+    }
+
+    if (units.containsKey(token)) {
+      continue;
+    }
+
+    final number = double.tryParse(token);
+
+    if (number != null &&
+        result.isNotEmpty &&
+        index + 1 < tokens.length &&
+        units.containsKey(tokens[index + 1])) {
+      final displayNumber = number == number.roundToDouble()
+          ? number.toInt().toString()
+          : number
+                .toStringAsFixed(3)
+                .replaceFirst(RegExp(r'0+$'), '')
+                .replaceFirst(RegExp(r'\.$'), '');
+
+      final unit = units[tokens[index + 1]]!;
+
+      result[result.length - 1] =
+          '${result[result.length - 1]} $displayNumber $unit';
+
+      index++;
+      continue;
+    }
+
+    if (number != null) {
+      final displayNumber = number == number.roundToDouble()
+          ? number.toInt().toString()
+          : number
+                .toStringAsFixed(3)
+                .replaceFirst(RegExp(r'0+$'), '')
+                .replaceFirst(RegExp(r'\.$'), '');
+
+      result.add(displayNumber);
+      continue;
+    }
+
+    result.add(token);
+  }
+
+  if (result.isEmpty) {
+    return null;
+  }
+
+  return result.join(' \u00B7 ');
+}
+
+bool _hasPatientSafeDose(PatientPrescriptionItem item) {
+  if (item.doseValue == null) {
+    return false;
+  }
+
+  final unit = item.doseUnit?.trim();
+
+  if (unit == null || unit.isEmpty) {
+    return true;
+  }
+
+  final looksLikePackageUnit =
+      unit.contains(',') ||
+      unit.contains('\uC815/\uBCD1') ||
+      unit.contains('\uCEA1\uC290/\uBCD1') ||
+      unit.contains('\uC815/\uD3EC') ||
+      unit.contains('\uCEA1\uC290/\uD3EC');
+
+  return !looksLikePackageUnit;
 }
 
 String _doseText(PatientPrescriptionItem item) {

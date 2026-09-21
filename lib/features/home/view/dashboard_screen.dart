@@ -45,9 +45,13 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   var _selectedIndex = 2;
+  bool _showPrescription = false;
 
   void _selectTab(int index) {
-    setState(() => _selectedIndex = index);
+    setState(() {
+      _selectedIndex = index;
+      _showPrescription = false;
+    });
   }
 
   Widget _pageFor(int index) {
@@ -73,6 +77,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return const SizedBox.shrink();
 
       case 2:
+        if (_showPrescription &&
+            widget.patientLinked == true &&
+            repository != null) {
+          return PatientPrescriptionListScreen(
+            repository: PatientPrescriptionRepository(repository.client),
+            embedded: true,
+          );
+        }
+
         return _DashboardHome(
           reservationRepository: repository,
           onLogout: widget.onLogout,
@@ -81,6 +94,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           onRefreshLink: widget.onRefreshLink,
           embedded: true,
           onSelectTab: _selectTab,
+          onOpenPrescription: () {
+            setState(() {
+              _showPrescription = true;
+            });
+          },
         );
 
       case 3:
@@ -261,6 +279,7 @@ class _DashboardHome extends StatelessWidget {
     this.onRefreshLink,
     this.embedded = false,
     this.onSelectTab,
+    this.onOpenPrescription,
   });
   final bool? patientLinked;
   final String? patientName;
@@ -269,6 +288,7 @@ class _DashboardHome extends StatelessWidget {
   final ReservationRepository? reservationRepository;
   final bool embedded;
   final ValueChanged<int>? onSelectTab;
+  final VoidCallback? onOpenPrescription;
   Future<void> openService(BuildContext context, String section) async {
     final repository = reservationRepository;
     if (repository == null) return;
@@ -328,6 +348,15 @@ class _DashboardHome extends StatelessWidget {
   }
 
   void open(BuildContext context, String title) {
+    if (title == '처방 조회' &&
+        embedded &&
+        onOpenPrescription != null &&
+        patientLinked == true &&
+        reservationRepository != null) {
+      onOpenPrescription!();
+      return;
+    }
+
     if (title == '주변 약국' && reservationRepository != null) {
       Navigator.of(context).push<void>(
         MaterialPageRoute(
