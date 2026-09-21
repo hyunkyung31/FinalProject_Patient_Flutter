@@ -47,10 +47,13 @@ class PatientReportRepository {
       Map<String, dynamic>.from(data),
     );
 
-    // 환자용 보고서만 앱에 전달
+    // 환자용 보고서만 앱에 전달하되,
+    // 동일 Encounter로 묶인 통합 검사 결과는 그대로 유지합니다.
     return PatientReleasedResultDetail(
       medicalResult: detail.medicalResult,
       reports: patientOnlyReports(detail.reports),
+      labResults: detail.labResults,
+      aiResults: detail.aiResults,
     );
   }
 

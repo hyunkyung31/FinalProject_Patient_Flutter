@@ -1,3 +1,6 @@
+import '../../ai_result/model/patient_ai_result.dart';
+import '../../lab_result/model/lab_result.dart';
+
 class PatientMedicalResult {
   const PatientMedicalResult({
     required this.id,
@@ -109,10 +112,16 @@ class PatientReleasedResultDetail {
   const PatientReleasedResultDetail({
     required this.medicalResult,
     required this.reports,
+    this.labResults = const [],
+    this.aiResults = const [],
   });
 
   final PatientMedicalResult medicalResult;
   final List<PatientReport> reports;
+
+  // 통합 리포트는 Backend가 동일 Encounter로 묶어 준 검사 결과만 사용합니다.
+  final List<LabResultDetail> labResults;
+  final List<PatientAIResult> aiResults;
 
   factory PatientReleasedResultDetail.fromJson(Map<String, dynamic> json) {
     final medicalResultJson = json['medical_result'];
@@ -124,6 +133,8 @@ class PatientReleasedResultDetail {
     return PatientReleasedResultDetail(
       medicalResult: PatientMedicalResult.fromJson(medicalResultJson),
       reports: _parseReports(json['reports']),
+      labResults: _parseLabResults(json['lab_results']),
+      aiResults: _parseAiResults(json['ai_results']),
     );
   }
 }
@@ -204,6 +215,28 @@ List<PatientReport> _parseReports(dynamic value) {
   return value
       .whereType<Map>()
       .map((item) => PatientReport.fromJson(Map<String, dynamic>.from(item)))
+      .toList();
+}
+
+List<LabResultDetail> _parseLabResults(dynamic value) {
+  if (value is! List) {
+    return const [];
+  }
+
+  return value
+      .whereType<Map>()
+      .map((item) => LabResultDetail.fromJson(Map<String, dynamic>.from(item)))
+      .toList();
+}
+
+List<PatientAIResult> _parseAiResults(dynamic value) {
+  if (value is! List) {
+    return const [];
+  }
+
+  return value
+      .whereType<Map>()
+      .map((item) => PatientAIResult.fromJson(Map<String, dynamic>.from(item)))
       .toList();
 }
 

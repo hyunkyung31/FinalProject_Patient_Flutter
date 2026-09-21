@@ -36,7 +36,7 @@ class _PatientReportListScreenState extends State<PatientReportListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('최종 보고서')),
+      appBar: AppBar(title: const Text('심혈관 통합 리포트')),
       body: FutureBuilder<List<PatientReleasedResult>>(
         future: _future,
         builder: (context, snapshot) {
@@ -117,7 +117,7 @@ class _ResultCard extends StatelessWidget {
                   const SizedBox(width: 10),
                   const Expanded(
                     child: Text(
-                      '최종 진료 보고서',
+                      '심혈관 통합 리포트',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -187,12 +187,12 @@ class _EmptyView extends StatelessWidget {
             ),
             SizedBox(height: 14),
             Text(
-              '공개된 최종 보고서가 없습니다.',
+              '공개된 심혈관 리포트가 없습니다.',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             SizedBox(height: 8),
             Text(
-              '의료진 검토와 승인 후 보고서가 공개됩니다.',
+              '의료진 검토와 승인 후 통합 리포트가 공개됩니다.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 13, color: AppColors.mutedText),
             ),
