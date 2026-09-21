@@ -59,7 +59,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       case 1:
         if (widget.patientLinked == true && repository != null) {
-          return PatientResultHubScreen(repository: repository);
+          return _ResultTabNavigator(repository: repository);
         }
 
         if (repository != null) {
@@ -170,6 +170,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
             label: '설정',
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ResultTabNavigator extends StatelessWidget {
+  const _ResultTabNavigator({required this.repository});
+
+  final ReservationRepository repository;
+
+  @override
+  Widget build(BuildContext context) {
+    return MediaQuery.removePadding(
+      context: context,
+      removeTop: true,
+      child: Navigator(
+        onGenerateRoute: (settings) {
+          return MaterialPageRoute<void>(
+            settings: settings,
+            builder: (_) =>
+                PatientResultHubScreen(repository: repository, embedded: true),
+          );
+        },
       ),
     );
   }
@@ -674,7 +697,9 @@ class _DashboardHome extends StatelessWidget {
 
                         const SizedBox(height: 14),
 
-                        _HomeStudioCard(onTap: () => open(context, '보미 스튜디오')),
+                        _HomeHealthCard(
+                          onTap: () => openHealthManagement(context),
+                        ),
 
                         const SizedBox(height: 12),
 
@@ -682,17 +707,8 @@ class _DashboardHome extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Expanded(
-                              child: _HomeSmallPromoCard(
-                                eyebrow: '이번 주도 꾸준히!',
-                                title: '건강관리',
-                                description: '오늘의 건강 미션을 확인해요.',
-                                buttonLabel: '지금 시작하기',
-                                backgroundColor: const Color(0xFFDDEEFF),
-                                foregroundColor: AppColors.navy,
-                                buttonColor: AppColors.blue,
-                                assetPath:
-                                    'assets/images/bomi/bomi_health_icon.png',
-                                onTap: () => openHealthManagement(context),
+                              child: _HomeBomiSmallCard(
+                                onTap: () => open(context, '보미 스튜디오'),
                               ),
                             ),
                             const SizedBox(width: 10),
@@ -1169,21 +1185,153 @@ class _DashboardMenuButton extends StatelessWidget {
   }
 }
 
-class _HomeStudioCard extends StatelessWidget {
-  const _HomeStudioCard({required this.onTap});
+class _HomeHealthCard extends StatelessWidget {
+  const _HomeHealthCard({required this.onTap});
 
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final compactHome = textScale < 1.2;
     final cardHeight = textScale >= 1.45
         ? 222.0
         : (textScale >= 1.2 ? 198.0 : 148.0);
 
     return Material(
-      color: Colors.transparent,
+      color: const Color(0xFFDDEEFF),
       borderRadius: BorderRadius.circular(22),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          height: cardHeight,
+          child: Stack(
+            children: [
+              Positioned(
+                right: -34,
+                top: -54,
+                child: Container(
+                  width: 150,
+                  height: 150,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.22),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+              Positioned(
+                right: -6,
+                bottom: -10,
+                child: SizedBox(
+                  width: compactHome ? 138 : 154,
+                  height: compactHome ? 138 : 154,
+                  child: Image.asset(
+                    'assets/images/bomi/bomi_health_icon.png',
+                    fit: BoxFit.contain,
+                    alignment: Alignment.bottomRight,
+                    excludeFromSemantics: true,
+                  ),
+                ),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  19,
+                  compactHome ? 128 : 146,
+                  18,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '이번 주도 꾸준히!',
+                      style: TextStyle(
+                        color: AppColors.blue,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    const Text(
+                      '건강관리',
+                      style: TextStyle(
+                        color: AppColors.navy,
+                        fontSize: 22,
+                        height: 1.08,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    const Text(
+                      '오늘의 건강 미션을 확인해요.',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Color(0xFF66738F),
+                        fontSize: 11,
+                        height: 1.4,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 17,
+                        vertical: 9,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.blue),
+                        borderRadius: BorderRadius.circular(999),
+                        color: Colors.white.withValues(alpha: 0.38),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '지금 시작하기',
+                            style: TextStyle(
+                              color: AppColors.blue,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          SizedBox(width: 4),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            color: AppColors.blue,
+                            size: 17,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeBomiSmallCard extends StatelessWidget {
+  const _HomeBomiSmallCard({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final compactHome = textScale < 1.2;
+    final cardHeight = textScale >= 1.45
+        ? 220.0
+        : (textScale >= 1.2 ? 188.0 : 112.0);
+
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(18),
       clipBehavior: Clip.antiAlias,
       child: Ink(
         decoration: BoxDecoration(
@@ -1193,70 +1341,50 @@ class _HomeStudioCard extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x1FD64E79),
-              blurRadius: 18,
-              offset: Offset(0, 7),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(18),
         ),
         child: InkWell(
           onTap: onTap,
           child: SizedBox(
             height: cardHeight,
             child: Stack(
-              clipBehavior: Clip.none,
               children: [
                 Positioned(
-                  right: -38,
-                  top: -52,
+                  right: -28,
+                  top: -35,
                   child: Container(
-                    width: 145,
-                    height: 145,
+                    width: 90,
+                    height: 90,
                     decoration: const BoxDecoration(
-                      color: Color(0x42FFFFFF),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 138,
-                  bottom: -82,
-                  child: Container(
-                    width: 170,
-                    height: 170,
-                    decoration: const BoxDecoration(
-                      color: Color(0x20FFFFFF),
+                      color: Color(0x3DFFFFFF),
                       shape: BoxShape.circle,
                     ),
                   ),
                 ),
                 const Positioned(
-                  right: 132,
-                  top: 20,
+                  right: 56,
+                  top: 7,
                   child: Icon(
                     Icons.auto_awesome_rounded,
-                    color: Color(0xE6FFFFFF),
-                    size: 22,
+                    color: Color(0xDFFFFFFF),
+                    size: 14,
                   ),
                 ),
                 const Positioned(
-                  right: 116,
-                  top: 49,
+                  right: 45,
+                  top: 25,
                   child: Icon(
                     Icons.favorite_rounded,
                     color: Color(0x8CFFFFFF),
-                    size: 13,
+                    size: 9,
                   ),
                 ),
                 Positioned(
-                  right: -2,
-                  bottom: -2,
+                  right: -8,
+                  bottom: -8,
                   child: SizedBox(
-                    width: textScale >= 1.45 ? 126 : 154,
-                    height: textScale >= 1.45 ? 138 : 160,
+                    width: compactHome ? 72 : 94,
+                    height: compactHome ? 72 : 94,
                     child: Image.asset(
                       'assets/images/bomi/bomi_heart_banner.png',
                       fit: BoxFit.contain,
@@ -1267,79 +1395,81 @@ class _HomeStudioCard extends StatelessWidget {
                 ),
                 Padding(
                   padding: EdgeInsets.fromLTRB(
-                    20,
-                    19,
-                    textScale >= 1.45 ? 106 : 138,
-                    18,
+                    compactHome ? 12 : 15,
+                    compactHome ? 8 : 15,
+                    8,
+                    compactHome ? 7 : 13,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
                         '나만의 작은 친구,',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: Color(0xFFE44268),
-                          fontSize: 12,
+                          fontSize: 10,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
-                      const SizedBox(height: 5),
-                      const Text(
-                        '보미 스튜디오',
+                      const SizedBox(height: 4),
+                      Text(
+                        '나만의 보미 꾸미기',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: AppColors.navy,
-                          fontSize: 22,
+                          fontSize: compactHome ? 14 : 17,
                           height: 1.08,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-                      const SizedBox(height: 7),
-                      const Text(
-                        '보미를 꾸미고 새로운 아이템을 만나보세요!',
-                        maxLines: 2,
+                      const SizedBox(height: 5),
+                      Text(
+                        '건강활동으로 새 아이템을 모아보세요!',
+                        maxLines: compactHome ? 1 : 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: Color(0xFF85546C),
-                          fontSize: 11,
-                          height: 1.4,
+                          color: const Color(0xFF85546C),
+                          fontSize: compactHome ? 8 : 9,
+                          height: 1.35,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                       const Spacer(),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 17,
-                          vertical: 9,
+                        constraints: const BoxConstraints(maxWidth: 112),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: compactHome ? 8 : 11,
+                          vertical: compactHome ? 4 : 7,
                         ),
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
                             colors: [Color(0xFFF14669), Color(0xFFE74C8A)],
                           ),
                           borderRadius: BorderRadius.circular(999),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x30E84770),
-                              blurRadius: 10,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(
-                              '지금 꾸미러 가기',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
+                            Flexible(
+                              child: Text(
+                                '지금 꾸미러 가기',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: compactHome ? 8 : 9,
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
                             ),
-                            SizedBox(width: 4),
-                            Icon(
+                            const SizedBox(width: 2),
+                            const Icon(
                               Icons.chevron_right_rounded,
                               color: Colors.white,
-                              size: 17,
+                              size: 14,
                             ),
                           ],
                         ),

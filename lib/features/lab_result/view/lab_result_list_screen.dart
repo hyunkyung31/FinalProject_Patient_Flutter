@@ -78,11 +78,23 @@ class _LabResultListScreenState extends State<LabResultListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: widget.embedded
           ? null
           : AppBar(
-              title: const Text('검사결과'),
+              primary: false,
+              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              title: Text(
+                '혈액검사',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               actions: [
                 IconButton(
                   tooltip: '새로고침',
@@ -139,7 +151,7 @@ class _LabResultListScreenState extends State<LabResultListScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      '최근 검사 결과를 확인해보세요',
+                                      '최근 혈액검사 결과',
                                       style: TextStyle(
                                         fontSize: 17,
                                         fontWeight: FontWeight.w800,
@@ -148,7 +160,7 @@ class _LabResultListScreenState extends State<LabResultListScreen> {
                                     ),
                                     SizedBox(height: 4),
                                     Text(
-                                      '검사 결과는 날짜별로 확인할 수 있어요.',
+                                      '검사일을 선택하면 수치와 이전 변화를 함께 확인할 수 있어요.',
                                       style: TextStyle(
                                         fontSize: 13,
                                         height: 1.4,
