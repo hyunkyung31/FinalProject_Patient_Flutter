@@ -8,6 +8,7 @@ class PatientMedicationInfo {
     this.manufacturer,
     this.dosageForm,
     this.strength,
+    this.imageUrl,
   });
 
   final int id;
@@ -18,6 +19,7 @@ class PatientMedicationInfo {
   final String? manufacturer;
   final String? dosageForm;
   final String? strength;
+  final String? imageUrl;
 
   factory PatientMedicationInfo.fromJson(Map<String, dynamic> json) {
     return PatientMedicationInfo(
@@ -29,6 +31,7 @@ class PatientMedicationInfo {
       manufacturer: _asString(json['manufacturer']),
       dosageForm: _asString(json['dosage_form']),
       strength: _asString(json['strength']),
+      imageUrl: _asString(json['image_url']),
     );
   }
 }
