@@ -1,15 +1,10 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
-<<<<<<< HEAD
-import 'package:shared_preferences/shared_preferences.dart';
-=======
 import 'package:url_launcher/url_launcher.dart';
->>>>>>> origin/main
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_preferences.dart';
 import '../../chatbot/widgets/chatbot_overlay_host.dart';
 import '../../onboarding/view/onboarding_screen.dart';
+import '../../onboarding/view/home_feature_tour_overlay.dart';
 import '../../reservation/view/reservation_list_screen.dart';
 import '../../reservation/view/reservation_screen.dart';
 import '../../reservation/model/patient_reservation.dart';
@@ -46,9 +41,9 @@ class DashboardScreen extends StatefulWidget {
   final String? patientName;
   final Future<void> Function()? onRefreshLink;
   final Future<void> Function()? onLogout;
-  final ReservationRepository? reservationRepository;
   final bool startFeatureTour;
   final Future<void> Function()? onFeatureTourFinished;
+  final ReservationRepository? reservationRepository;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -56,251 +51,69 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   var _selectedIndex = 2;
-<<<<<<< HEAD
+  bool _showPrescription = false;
   final _reservationKey = GlobalKey();
   final _quickMenuKey = GlobalKey();
   final _chatbotKey = GlobalKey();
   final _healthTabKey = GlobalKey();
-  bool _showingHomeTour = false;
-  OverlayEntry? _homeTourOverlay;
+  OverlayEntry? _featureTourOverlay;
+  bool _showingFeatureTour = false;
 
   @override
   void initState() {
     super.initState();
     if (widget.startFeatureTour) {
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _checkHomeTour(force: true),
-      );
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showFeatureTour());
     }
   }
 
-  Future<void> _checkHomeTour({bool force = false}) async {
-    final preferences = await SharedPreferences.getInstance();
-    final completed =
-        preferences.getBool('home_feature_tour_completed') ?? false;
-    if (!mounted || (!force && completed)) return;
-    _showHomeTour();
-  }
-
-  Future<void> _completeHomeTour() async {
-    final preferences = await SharedPreferences.getInstance();
-    await preferences.setBool('home_feature_tour_completed', true);
-  }
-
-  void _showHomeTour() {
-    if (!mounted ||
-        _showingHomeTour ||
-        _reservationKey.currentContext == null ||
+  void _showFeatureTour() {
+    if (!mounted || _showingFeatureTour) return;
+    if (_reservationKey.currentContext == null ||
         _quickMenuKey.currentContext == null ||
         _chatbotKey.currentContext == null ||
         _healthTabKey.currentContext == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showFeatureTour());
       return;
     }
 
-    final targets = [
-      _HomeTourTarget(
-        key: _reservationKey,
-        shape: _HomeTourTargetShape.rounded,
-        title: '\uC608\uC57D \uD655\uC778\uACFC \uC0C8 \uC608\uC57D',
-        description:
-            '\uC608\uC815\uB41C \uC9C4\uB8CC \uC77C\uC815\uC744 \uD655\uC778\uD558\uACE0, \uD544\uC694\uD558\uBA74 \uC0C8 \uC608\uC57D\uC744 \uC2DC\uC791\uD560 \uC218 \uC788\uC5B4\uC694.',
-      ),
-      _HomeTourTarget(
-        key: _quickMenuKey,
-        shape: _HomeTourTargetShape.rounded,
-        title: '\uC790\uC8FC \uC4F0\uB294 \uAE30\uB2A5',
-        description:
-            '\uAC80\uC0AC\uACB0\uACFC, AI \uB9AC\uD3EC\uD2B8, \uCC98\uBC29 \uC870\uD68C, \uC8FC\uBCC0 \uC57D\uAD6D\uC744 \uD55C\uBC88\uC5D0 \uCC3E\uC744 \uC218 \uC788\uC5B4\uC694.',
-      ),
-      _HomeTourTarget(
-        key: _chatbotKey,
-        shape: _HomeTourTargetShape.circle,
-        title: '\uBCF4\uBBF8\uC5D0\uAC8C \uBB3C\uC5B4\uBCF4\uC138\uC694',
-        description:
-            '\uC0C1\uB2E8 \uCC57\uBD07\uC5D0\uC11C \uC9C4\uB8CC\uC640 \uAC74\uAC15\uC5D0 \uAD00\uD55C \uAD81\uAE08\uD55C \uC810\uC744 \uBC14\uB85C \uBB3C\uC5B4\uBCFC \uC218 \uC788\uC5B4\uC694.',
-      ),
-      _HomeTourTarget(
-        key: _healthTabKey,
-        shape: _HomeTourTargetShape.circle,
-        title: '\uD558\uB2E8 \uD0ED\uC73C\uB85C \uC26C\uAC8C \uC774\uB3D9',
-        description:
-            '\uD558\uB2E8 \uD0ED\uC5D0\uC11C \uC608\uC57D, \uAC80\uC0AC\uACB0\uACFC, \uD648, \uAC74\uAC15\uAD00\uB9AC, \uB0B4 \uC815\uBCF4\uB97C \uC5B8\uC81C\uB4E0 \uC624\uAC08 \uC218 \uC788\uC5B4\uC694.',
-      ),
-    ];
-
-    _showingHomeTour = true;
-    _homeTourOverlay = OverlayEntry(
-      builder: (_) => _HomeFeatureTour(
-        targets: targets,
-        onFinish: _finishHomeTour,
-        onSkip: _skipHomeTour,
+    _showingFeatureTour = true;
+    _featureTourOverlay = OverlayEntry(
+      builder: (_) => HomeFeatureTourOverlay(
+        reservationKey: _reservationKey,
+        quickMenuKey: _quickMenuKey,
+        chatbotKey: _chatbotKey,
+        healthTabKey: _healthTabKey,
+        onFinish: _finishFeatureTour,
+        onSkip: _skipFeatureTour,
       ),
     );
-    Overlay.of(context, rootOverlay: true).insert(_homeTourOverlay!);
+    Overlay.of(context, rootOverlay: true).insert(_featureTourOverlay!);
   }
 
-  Future<void> _finishHomeTour() async {
-    _dismissHomeTour();
-    await _completeHomeTour();
-    if (!mounted) return;
+  void _dismissFeatureTour() {
+    _featureTourOverlay?.remove();
+    _featureTourOverlay = null;
+    _showingFeatureTour = false;
+  }
+
+  Future<void> _finishFeatureTour() async {
+    _dismissFeatureTour();
     await Future<void>.delayed(const Duration(milliseconds: 180));
-    if (mounted) await _showTextScalePickerIfNeeded();
+    if (mounted) await showHomeTourTextScalePicker(context);
     await widget.onFeatureTourFinished?.call();
   }
 
-  Future<void> _skipHomeTour() async {
-    _dismissHomeTour();
-    await _completeHomeTour();
+  Future<void> _skipFeatureTour() async {
+    _dismissFeatureTour();
     await widget.onFeatureTourFinished?.call();
   }
 
-  void _dismissHomeTour() {
-    _homeTourOverlay?.remove();
-    _homeTourOverlay = null;
-    _showingHomeTour = false;
+  @override
+  void dispose() {
+    _dismissFeatureTour();
+    super.dispose();
   }
-
-  Future<void> _showTextScalePickerIfNeeded() async {
-    final preferences = await SharedPreferences.getInstance();
-    final selected = preferences.getBool('home_text_scale_selected') ?? false;
-    if (!mounted || selected) return;
-
-    var selectedScale = AppPreferences.instance.textScale;
-    await showModalBottomSheet<void>(
-      context: context,
-      isDismissible: false,
-      enableDrag: false,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) => SafeArea(
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(24, 18, 24, 28),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(28),
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 42,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.outlineVariant,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 22),
-                AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 160),
-                  curve: Curves.easeOut,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: AppColors.navy,
-                    fontSize: 20 * selectedScale,
-                    fontWeight: FontWeight.w900,
-                  ),
-                  child: const Text(
-                    '\uB098\uC5D0\uAC8C \uB9DE\uB294 \uAE00\uC528 \uD06C\uAE30\uB97C \uACE8\uB77C\uC694',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '\uC120\uD0DD\uD55C \uD06C\uAE30\uB294 \uD655\uC778 \uB2E8\uACC4\uB97C \uAC70\uCCD0 \uC801\uC6A9\uB429\uB2C8\uB2E4. \uC5B8\uC81C\uB4E0 \uB0B4 \uC815\uBCF4 > \uC571 \uC124\uC815\uC5D0\uC11C \uB2E4\uC2DC \uBC14\uAFC0 \uC218 \uC788\uC5B4\uC694.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  children: [
-                    for (final option in const [
-                      (1.0, '\uAE30\uBCF8', '\uD3B8\uC548\uD55C \uD06C\uAE30'),
-                      (
-                        1.2,
-                        '\uD06C\uAC8C',
-                        '\uC870\uAE08 \uB354 \uD070 \uAE00\uC528',
-                      ),
-                      (
-                        1.5,
-                        '\uB9E4\uC6B0 \uD06C\uAC8C',
-                        '\uAC00\uC7A5 \uD070 \uAE00\uC528',
-                      ),
-                    ])
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 4),
-                          child: _TextScaleChoice(
-                            scale: option.$1,
-                            label: option.$2,
-                            description: option.$3,
-                            selected: selectedScale == option.$1,
-                            onTap: () =>
-                                setSheetState(() => selectedScale = option.$1),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 22),
-                FilledButton(
-                  onPressed: () async {
-                    final confirmed = await showDialog<bool>(
-                      context: sheetContext,
-                      builder: (dialogContext) => AlertDialog(
-                        title: const Text(
-                          '\uC120\uD0DD\uD55C \uAE00\uC528 \uD06C\uAE30\uB85C \uC801\uC6A9\uD560\uAE4C\uC694?',
-                        ),
-                        content: Text(
-                          '${(selectedScale * 100).round()}% \uD06C\uAE30\uB85C \uC571 \uC804\uCCB4\uC5D0 \uC801\uC6A9\uD569\uB2C8\uB2E4.',
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () =>
-                                Navigator.pop(dialogContext, false),
-                            child: const Text(
-                              '\uB2E4\uC2DC \uACE0\uB974\uAE30',
-                            ),
-                          ),
-                          FilledButton(
-                            onPressed: () => Navigator.pop(dialogContext, true),
-                            child: const Text('\uC801\uC6A9'),
-                          ),
-                        ],
-                      ),
-                    );
-                    if (confirmed != true) return;
-                    await AppPreferences.instance.save(
-                      textScale: selectedScale,
-                    );
-                    await preferences.setBool('home_text_scale_selected', true);
-                    if (sheetContext.mounted) Navigator.pop(sheetContext);
-                  },
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                  ),
-                  child: const Text(
-                    '\uC120\uD0DD \uC644\uB8CC',
-                    style: TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-=======
-  bool _showPrescription = false;
->>>>>>> origin/main
 
   void _selectTab(int index) {
     setState(() {
@@ -347,18 +160,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           patientLinked: widget.patientLinked,
           patientName: widget.patientName,
           onRefreshLink: widget.onRefreshLink,
-          embedded: true,
-          onSelectTab: _selectTab,
-<<<<<<< HEAD
           reservationKey: _reservationKey,
           quickMenuKey: _quickMenuKey,
-=======
+          embedded: true,
+          onSelectTab: _selectTab,
           onOpenPrescription: () {
             setState(() {
               _showPrescription = true;
             });
           },
->>>>>>> origin/main
         );
 
       case 3:
@@ -407,7 +217,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _PersistentTopBar(
             repository: widget.reservationRepository,
             tinted: _selectedIndex == 2,
-            onShowGuide: _showHomeTour,
+            onShowGuide: _showFeatureTour,
             chatbotKey: _chatbotKey,
           ),
           Expanded(
@@ -441,7 +251,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           NavigationDestination(
             key: _healthTabKey,
-            icon: Icon(Icons.favorite_border_rounded),
+            icon: const Icon(Icons.favorite_border_rounded),
             selectedIcon: Icon(Icons.favorite_rounded),
             label: '건강관리',
           ),
@@ -542,28 +352,22 @@ class _DashboardHome extends StatelessWidget {
     this.patientLinked,
     this.patientName,
     this.onRefreshLink,
-    this.embedded = false,
-    this.onSelectTab,
-<<<<<<< HEAD
     this.reservationKey,
     this.quickMenuKey,
-=======
+    this.embedded = false,
+    this.onSelectTab,
     this.onOpenPrescription,
->>>>>>> origin/main
   });
   final bool? patientLinked;
   final String? patientName;
   final Future<void> Function()? onRefreshLink;
   final Future<void> Function()? onLogout;
+  final GlobalKey? reservationKey;
+  final GlobalKey? quickMenuKey;
   final ReservationRepository? reservationRepository;
   final bool embedded;
   final ValueChanged<int>? onSelectTab;
-<<<<<<< HEAD
-  final GlobalKey? reservationKey;
-  final GlobalKey? quickMenuKey;
-=======
   final VoidCallback? onOpenPrescription;
->>>>>>> origin/main
   Future<void> openService(BuildContext context, String section) async {
     final repository = reservationRepository;
     if (repository == null) return;
@@ -748,6 +552,7 @@ class _DashboardHome extends StatelessWidget {
             ];
 
             return SingleChildScrollView(
+              key: quickMenuKey,
               padding: const EdgeInsets.only(bottom: 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -939,17 +744,6 @@ class _DashboardHome extends StatelessWidget {
                         ],
 
                         // 자주 사용하는 4개 기능을 독립 카드로 배치한다.
-<<<<<<< HEAD
-                        KeyedSubtree(
-                          key: quickMenuKey,
-                          child: LayoutBuilder(
-                            builder: (context, menuConstraints) {
-                              const spacing = 8.0;
-                              final itemWidth =
-                                  (menuConstraints.maxWidth -
-                                      spacing * (menuColumns - 1)) /
-                                  menuColumns;
-=======
                         Text(
                           '내 건강을 위한 주요 서비스',
                           style: Theme.of(context).textTheme.titleMedium
@@ -977,33 +771,31 @@ class _DashboardHome extends StatelessWidget {
                                 (menuConstraints.maxWidth -
                                     spacing * (menuColumns - 1)) /
                                 menuColumns;
->>>>>>> origin/main
 
-                              return Wrap(
-                                spacing: spacing,
-                                runSpacing: spacing,
-                                children: [
-                                  for (final item in menuItems)
-                                    SizedBox(
-                                      width: itemWidth,
-                                      child: _DashboardMenuButton(
-                                        icon: item.$1,
-                                        label: item.$2,
-                                        subtitle: item.$3,
-                                        onTap: () {
-                                          if (item.$4 == '검사결과') {
-                                            openLabResults(context);
-                                            return;
-                                          }
+                            return Wrap(
+                              spacing: spacing,
+                              runSpacing: spacing,
+                              children: [
+                                for (final item in menuItems)
+                                  SizedBox(
+                                    width: itemWidth,
+                                    child: _DashboardMenuButton(
+                                      icon: item.$1,
+                                      label: item.$2,
+                                      subtitle: item.$3,
+                                      onTap: () {
+                                        if (item.$4 == '검사결과') {
+                                          openLabResults(context);
+                                          return;
+                                        }
 
-                                          open(context, item.$4);
-                                        },
-                                      ),
+                                        open(context, item.$4);
+                                      },
                                     ),
-                                ],
-                              );
-                            },
-                          ),
+                                  ),
+                              ],
+                            );
+                          },
                         ),
 
                         const SizedBox(height: 14),
@@ -1050,7 +842,7 @@ class _DashboardHome extends StatelessWidget {
                 openService(context, 'settings');
               }
             },
-            destinations: [
+            destinations: const [
               NavigationDestination(
                 icon: Icon(Icons.calendar_month_outlined),
                 label: '예약',
@@ -1612,21 +1404,6 @@ class _HomeHealthCard extends StatelessWidget {
   }
 }
 
-<<<<<<< HEAD
-class _TextScaleChoice extends StatelessWidget {
-  const _TextScaleChoice({
-    required this.scale,
-    required this.label,
-    required this.description,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final double scale;
-  final String label;
-  final String description;
-  final bool selected;
-=======
 class _DailyHealthGuide {
   const _DailyHealthGuide({
     required this.title,
@@ -1819,62 +1596,10 @@ class _HomeHealthInfoRow extends StatelessWidget {
   final Color iconColor;
   final String title;
   final String subtitle;
->>>>>>> origin/main
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-<<<<<<< HEAD
-    final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: selected ? scheme.secondaryContainer : scheme.surface,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          height: 132,
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: selected ? AppColors.blue : scheme.outlineVariant,
-              width: selected ? 2 : 1,
-            ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Aa',
-                style: TextStyle(
-                  color: selected ? AppColors.blue : scheme.onSurface,
-                  fontSize: 18 * scale,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: scheme.onSurface,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                description,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: scheme.onSurfaceVariant,
-                  fontSize: 10,
-                  height: 1.25,
-                ),
-=======
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1928,7 +1653,6 @@ class _HomeHealthInfoRow extends StatelessWidget {
                 Icons.chevron_right_rounded,
                 size: 21,
                 color: Color(0xFFA5AFC1),
->>>>>>> origin/main
               ),
             ],
           ),
@@ -1938,369 +1662,6 @@ class _HomeHealthInfoRow extends StatelessWidget {
   }
 }
 
-<<<<<<< HEAD
-enum _HomeTourTargetShape { rounded, circle }
-
-class _HomeTourTarget {
-  const _HomeTourTarget({
-    required this.key,
-    required this.shape,
-    required this.title,
-    required this.description,
-  });
-
-  final GlobalKey key;
-  final _HomeTourTargetShape shape;
-  final String title;
-  final String description;
-}
-
-class _HomeFeatureTour extends StatefulWidget {
-  const _HomeFeatureTour({
-    required this.targets,
-    required this.onFinish,
-    required this.onSkip,
-  });
-
-  final List<_HomeTourTarget> targets;
-  final Future<void> Function() onFinish;
-  final Future<void> Function() onSkip;
-
-  @override
-  State<_HomeFeatureTour> createState() => _HomeFeatureTourState();
-}
-
-class _HomeFeatureTourState extends State<_HomeFeatureTour> {
-  final _panelKey = GlobalKey();
-  var _index = 0;
-  Rect? _panelRect;
-
-  Rect? _targetRect(_HomeTourTarget target) {
-    final renderObject = target.key.currentContext?.findRenderObject();
-    if (renderObject is! RenderBox || !renderObject.hasSize) return null;
-    return renderObject.localToGlobal(Offset.zero) & renderObject.size;
-  }
-
-  void _readPanelRect() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final renderObject = _panelKey.currentContext?.findRenderObject();
-      if (renderObject is! RenderBox || !renderObject.hasSize) return;
-      final rect = renderObject.localToGlobal(Offset.zero) & renderObject.size;
-      if (_panelRect != rect) setState(() => _panelRect = rect);
-    });
-  }
-
-  void _next() {
-    if (_index == widget.targets.length - 1) {
-      widget.onFinish();
-      return;
-    }
-    setState(() {
-      _index += 1;
-      _panelRect = null;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final target = widget.targets[_index];
-    final targetRect = _targetRect(target);
-    if (targetRect == null) return const SizedBox.shrink();
-
-    final size = MediaQuery.sizeOf(context);
-    final nearTop = targetRect.center.dy < 250;
-    final nearBottom = targetRect.center.dy > size.height - 230;
-    final preferredTop = nearTop
-        ? targetRect.bottom + 42
-        : nearBottom
-        ? targetRect.top - 205
-        : targetRect.bottom + 42;
-    final panelTop = preferredTop.clamp(72.0, size.height - 220.0);
-    _readPanelRect();
-
-    return Material(
-      type: MaterialType.transparency,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _HomeTourBackdropPainter(
-                targetRect: targetRect,
-                shape: target.shape,
-              ),
-            ),
-          ),
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {},
-            ),
-          ),
-          if (_panelRect != null)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: CustomPaint(
-                  painter: _HomeTourConnectorPainter(
-                    panelRect: _panelRect!,
-                    targetRect: targetRect,
-                  ),
-                ),
-              ),
-            ),
-          Positioned(
-            key: _panelKey,
-            left: 24,
-            right: 24,
-            top: panelTop,
-            child: _HomeTourPanel(
-              step: _index + 1,
-              totalSteps: widget.targets.length,
-              title: target.title,
-              description: target.description,
-              isLast: _index == widget.targets.length - 1,
-              onNext: _next,
-              onSkip: widget.onSkip,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HomeTourPanel extends StatelessWidget {
-  const _HomeTourPanel({
-    required this.step,
-    required this.totalSteps,
-    required this.title,
-    required this.description,
-    required this.isLast,
-    required this.onNext,
-    required this.onSkip,
-  });
-
-  final int step;
-  final int totalSteps;
-  final String title;
-  final String description;
-  final bool isLast;
-  final VoidCallback onNext;
-  final Future<void> Function() onSkip;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: const Color(0xFF11264A),
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0x668DE9DE)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x44000000),
-              blurRadius: 16,
-              offset: Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 26,
-                  height: 26,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFFD8E5),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    '$step',
-                    style: const TextStyle(
-                      color: AppColors.navy,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                Text(
-                  '$step / $totalSteps',
-                  style: const TextStyle(
-                    color: Color(0xFFAFC9FF),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 9),
-            Text(
-              description,
-              style: const TextStyle(
-                color: Color(0xFFF2F6FF),
-                fontSize: 14,
-                height: 1.42,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                TextButton(
-                  onPressed: onSkip,
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFFAFC9FF),
-                  ),
-                  child: const Text('\uAC74\uB108\uB6F0\uAE30'),
-                ),
-                const Spacer(),
-                FilledButton(
-                  onPressed: onNext,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF3976E8),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                  ),
-                  child: Text(
-                    isLast ? '\uC2DC\uC791\uD558\uAE30' : '\uB2E4\uC74C',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _HomeTourBackdropPainter extends CustomPainter {
-  const _HomeTourBackdropPainter({
-    required this.targetRect,
-    required this.shape,
-  });
-
-  final Rect targetRect;
-  final _HomeTourTargetShape shape;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final spotlight = _spotlightRect(targetRect);
-    canvas.saveLayer(Offset.zero & size, Paint());
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()..color = const Color(0xCB07101F),
-    );
-    final clearPaint = Paint()..blendMode = BlendMode.clear;
-    _drawSpotlight(canvas, spotlight, clearPaint);
-    canvas.restore();
-    _drawSpotlight(
-      canvas,
-      spotlight,
-      Paint()
-        ..color = const Color(0xFF8DE9DE)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5,
-    );
-  }
-
-  Rect _spotlightRect(Rect rect) =>
-      rect.inflate(shape == _HomeTourTargetShape.circle ? 9 : 7);
-
-  void _drawSpotlight(Canvas canvas, Rect rect, Paint paint) {
-    if (shape == _HomeTourTargetShape.circle) {
-      canvas.drawCircle(rect.center, rect.longestSide / 2, paint);
-    } else {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, const Radius.circular(20)),
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _HomeTourBackdropPainter oldDelegate) =>
-      oldDelegate.targetRect != targetRect || oldDelegate.shape != shape;
-}
-
-class _HomeTourConnectorPainter extends CustomPainter {
-  const _HomeTourConnectorPainter({
-    required this.panelRect,
-    required this.targetRect,
-  });
-
-  final Rect panelRect;
-  final Rect targetRect;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final targetAbove = targetRect.center.dy < panelRect.center.dy;
-    // 대상의 가로 위치와 같은 패널 가장자리에서 출발해, 챗봇과 하단 탭으로도 불필요한 대각선을 만들지 않는다.
-    final anchorX = targetRect.center.dx.clamp(
-      panelRect.left + 28,
-      panelRect.right - 28,
-    );
-    final start = targetAbove
-        ? Offset(anchorX, panelRect.top)
-        : Offset(anchorX, panelRect.bottom);
-    // 화살촉이 강조 영역 안에 묻히지 않도록 가장 가까운 위/아래 테두리까지만 연결한다.
-    final end = targetAbove
-        ? Offset(targetRect.center.dx, targetRect.bottom)
-        : Offset(targetRect.center.dx, targetRect.top);
-    final delta = end - start;
-    final paint = Paint()
-      ..color = const Color(0xFF8DE9DE)
-      ..strokeWidth = 3.5
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
-    final path = Path()..moveTo(start.dx, start.dy);
-    final control1 = start + delta * .32;
-    final control2 = end - delta * .27;
-    path.cubicTo(
-      control1.dx,
-      control1.dy,
-      control2.dx,
-      control2.dy,
-      end.dx,
-      end.dy,
-    );
-    canvas.drawPath(path, paint);
-
-    // 마지막 곡선 접선과 화살촉 방향을 동일하게 유지한다.
-    final tangent = end - control2;
-    final angle = math.atan2(tangent.dy, tangent.dx);
-    const headLength = 13.0;
-    for (final offset in [-0.62, 0.62]) {
-      final point = Offset(
-        end.dx - math.cos(angle + offset) * headLength,
-        end.dy - math.sin(angle + offset) * headLength,
-      );
-      canvas.drawLine(end, point, paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _HomeTourConnectorPainter oldDelegate) =>
-      oldDelegate.panelRect != panelRect ||
-      oldDelegate.targetRect != targetRect;
-=======
 void _showPreparationGuide(BuildContext context) {
   _showHealthInfoSheet(
     context,
@@ -2522,5 +1883,4 @@ void _showHealthInfoSheet(
       );
     },
   );
->>>>>>> origin/main
 }
