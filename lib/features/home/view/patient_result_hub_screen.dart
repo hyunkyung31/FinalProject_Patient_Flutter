@@ -77,6 +77,23 @@ class PatientResultHubScreen extends StatelessWidget {
           ),
 
           _ResultMenuCard(
+            icon: Icons.favorite_outline_rounded,
+            title: '심혈관 위험도',
+            subtitle: '임상정보와 혈액검사 등을 바탕으로 분석한 심혈관 위험도를 확인해요.',
+            onTap: () => _open(
+              context,
+              PatientAIResultListScreen(
+                repository: PatientAIResultRepository(repository.client),
+                analysisType: 'CLINICAL',
+                title: '심혈관 위험도',
+                emptyTitle: '공개된 심혈관 위험도 결과가 없어요.',
+                emptyMessage:
+                    '의료진 검토 후 공개된 결과가 있으면 이곳에서 확인할 수 있어요.',
+              ),
+            ),
+          ),
+
+          _ResultMenuCard(
             icon: Icons.monitor_heart_outlined,
             title: '혈관조영술',
             subtitle: '공개된 관상동맥조영술 분석 결과를 확인해요.',
@@ -103,7 +120,7 @@ class PatientResultHubScreen extends StatelessWidget {
                 analysisType: 'CCTA',
                 title: '혈관 CT',
                 emptyTitle: '공개된 혈관 CT 결과가 없어요.',
-                emptyMessage: '검사 이력이 없거나 아직 공개 전일 수 있어요.',
+                emptyMessage: '검사 이력이 없거나 아직 의료진 검토·공개 전일 수 있어요.',
               ),
             ),
           ),

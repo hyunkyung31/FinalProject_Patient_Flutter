@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../core/network/api_client.dart';
 import '../model/patient_ai_result.dart';
@@ -32,6 +33,26 @@ class PatientAIResultRepository {
     );
 
     final data = response.data;
+
+    if (kDebugMode) {
+      debugPrint('[AI_RESULT_DEBUG] baseUrl=${client.dio.options.baseUrl}');
+      debugPrint('[AI_RESULT_DEBUG] status=${response.statusCode}');
+
+      if (data is List) {
+        debugPrint('[AI_RESULT_DEBUG] count=${data.length}');
+
+        for (final item in data.whereType<Map>()) {
+          debugPrint(
+            "[AI_RESULT_DEBUG] "
+            "id=${item['id']} "
+            "type=${item['analysis_type']} "
+            "status=${item['status']}",
+          );
+        }
+      } else {
+        debugPrint('[AI_RESULT_DEBUG] responseType=${data.runtimeType}');
+      }
+    }
 
     if (data is! List) {
       throw const FormatException('AI 결과 목록 형식이 올바르지 않습니다.');
