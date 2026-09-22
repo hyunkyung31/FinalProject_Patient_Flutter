@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_preferences.dart';
 import '../../chatbot/widgets/chatbot_overlay_host.dart';
@@ -467,7 +468,7 @@ class _DashboardHome extends StatelessWidget {
 
             final menuItems = <(IconData, String, String, String)>[
               (Icons.table_chart_outlined, '검사결과', '내 검사 결과\n확인', '검사결과'),
-              (Icons.description_outlined, '리포트', 'AI 건강 리포트', '리포트'),
+              (Icons.description_outlined, '리포트', '내 리포트 확인', '리포트'),
               (Icons.medication_outlined, '처방조회', '내 처방 내역', '처방 조회'),
               (Icons.home_work_outlined, '주변 약국', '가까운 약국 찾기', '주변 약국'),
             ];
@@ -564,9 +565,9 @@ class _DashboardHome extends StatelessWidget {
                                         ),
                                       ),
                                       const SizedBox(height: 8),
-                                      const Text(
+                                      Text(
                                         '오늘도 보미와 건강한 하루 함께해요.',
-                                        maxLines: 1,
+                                        maxLines: textScale >= 1.2 ? 2 : 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
                                           color: Color(0xFF7385B7),
@@ -580,15 +581,11 @@ class _DashboardHome extends StatelessWidget {
                                 ),
                               ),
                               Positioned(
-                                right: compact ? -4 : 0,
-                                bottom: -18,
+                                right: 4,
+                                bottom: -14,
                                 child: SizedBox(
-                                  width: textScale >= 1.45
-                                      ? 128
-                                      : (compact ? 140 : 170),
-                                  height: textScale >= 1.45
-                                      ? 140
-                                      : (compact ? 145 : 176),
+                                  width: 145,
+                                  height: 150,
                                   child: Image.asset(
                                     'assets/images/bomi/bomi_dashboard_hero.png',
                                     fit: BoxFit.contain,
@@ -667,6 +664,26 @@ class _DashboardHome extends StatelessWidget {
                         ],
 
                         // 자주 사용하는 4개 기능을 독립 카드로 배치한다.
+                        Text(
+                          '내 건강을 위한 주요 서비스',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(
+                                color: AppColors.navy,
+                                fontWeight: FontWeight.w900,
+                              ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '검사부터 처방까지, 더 건강한 오늘을 위해',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: const Color(0xFF73809A),
+                                fontWeight: FontWeight.w500,
+                              ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Keep the four core medical services at equal size.
                         LayoutBuilder(
                           builder: (context, menuConstraints) {
                             const spacing = 8.0;
@@ -703,44 +720,13 @@ class _DashboardHome extends StatelessWidget {
 
                         const SizedBox(height: 14),
 
-                        _HomeStudioCard(onTap: () => open(context, '보미 스튜디오')),
+                        _HomeHealthCard(
+                          onTap: () => openHealthManagement(context),
+                        ),
 
                         const SizedBox(height: 12),
 
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: _HomeSmallPromoCard(
-                                eyebrow: '이번 주도 꾸준히!',
-                                title: '건강관리',
-                                description: '오늘의 건강 미션을 확인해요.',
-                                buttonLabel: '지금 시작하기',
-                                backgroundColor: const Color(0xFFDDEEFF),
-                                foregroundColor: AppColors.navy,
-                                buttonColor: AppColors.blue,
-                                assetPath:
-                                    'assets/images/bomi/bomi_health_icon.png',
-                                onTap: () => openHealthManagement(context),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _HomeSmallPromoCard(
-                                eyebrow: '건강할수록 커지는',
-                                title: '두근 리워드',
-                                description: '포인트로 더 특별한 혜택을 받아보세요!',
-                                buttonLabel: '내 리워드 보기',
-                                backgroundColor: const Color(0xFFFFF0BF),
-                                foregroundColor: AppColors.navy,
-                                buttonColor: const Color(0xFFE89A24),
-                                assetPath:
-                                    'assets/images/bomi/bomi_reward_icon.png',
-                                onTap: () => open(context, '리워드'),
-                              ),
-                            ),
-                          ],
-                        ),
+                        _HomeHealthInfoSection(),
                       ],
                     ),
                   ),
@@ -1069,6 +1055,9 @@ class _ReservationSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final largeText = textScale >= 1.2;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -1084,7 +1073,7 @@ class _ReservationSummary extends StatelessWidget {
         const SizedBox(height: 3),
         Text(
           subtitle,
-          maxLines: 1,
+          maxLines: largeText ? 2 : 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: AppColors.text,
@@ -1198,214 +1187,9 @@ class _DashboardMenuButton extends StatelessWidget {
   }
 }
 
-class _HomeStudioCard extends StatelessWidget {
-  const _HomeStudioCard({required this.onTap});
+class _HomeHealthCard extends StatelessWidget {
+  const _HomeHealthCard({required this.onTap});
 
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final textScale = MediaQuery.textScalerOf(context).scale(1);
-    final cardHeight = textScale >= 1.45
-        ? 222.0
-        : (textScale >= 1.2 ? 198.0 : 148.0);
-
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(22),
-      clipBehavior: Clip.antiAlias,
-      child: Ink(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFFFE4EC), Color(0xFFFFABC3), Color(0xFFE6D9FF)],
-            stops: [0.0, 0.56, 1.0],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x1FD64E79),
-              blurRadius: 18,
-              offset: Offset(0, 7),
-            ),
-          ],
-        ),
-        child: InkWell(
-          onTap: onTap,
-          child: SizedBox(
-            height: cardHeight,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Positioned(
-                  right: -38,
-                  top: -52,
-                  child: Container(
-                    width: 145,
-                    height: 145,
-                    decoration: const BoxDecoration(
-                      color: Color(0x42FFFFFF),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 138,
-                  bottom: -82,
-                  child: Container(
-                    width: 170,
-                    height: 170,
-                    decoration: const BoxDecoration(
-                      color: Color(0x20FFFFFF),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-                const Positioned(
-                  right: 132,
-                  top: 20,
-                  child: Icon(
-                    Icons.auto_awesome_rounded,
-                    color: Color(0xE6FFFFFF),
-                    size: 22,
-                  ),
-                ),
-                const Positioned(
-                  right: 116,
-                  top: 49,
-                  child: Icon(
-                    Icons.favorite_rounded,
-                    color: Color(0x8CFFFFFF),
-                    size: 13,
-                  ),
-                ),
-                Positioned(
-                  right: -2,
-                  bottom: -2,
-                  child: SizedBox(
-                    width: textScale >= 1.45 ? 126 : 154,
-                    height: textScale >= 1.45 ? 138 : 160,
-                    child: Image.asset(
-                      'assets/images/bomi/bomi_heart_banner.png',
-                      fit: BoxFit.contain,
-                      alignment: Alignment.bottomRight,
-                      excludeFromSemantics: true,
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    20,
-                    19,
-                    textScale >= 1.45 ? 106 : 138,
-                    18,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        '나만의 작은 친구,',
-                        style: TextStyle(
-                          color: Color(0xFFE44268),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      const Text(
-                        '보미 스튜디오',
-                        style: TextStyle(
-                          color: AppColors.navy,
-                          fontSize: 22,
-                          height: 1.08,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 7),
-                      const Text(
-                        '보미를 꾸미고 새로운 아이템을 만나보세요!',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Color(0xFF85546C),
-                          fontSize: 11,
-                          height: 1.4,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 17,
-                          vertical: 9,
-                        ),
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFF14669), Color(0xFFE74C8A)],
-                          ),
-                          borderRadius: BorderRadius.circular(999),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x30E84770),
-                              blurRadius: 10,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '지금 꾸미러 가기',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            SizedBox(width: 4),
-                            Icon(
-                              Icons.chevron_right_rounded,
-                              color: Colors.white,
-                              size: 17,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _HomeSmallPromoCard extends StatelessWidget {
-  const _HomeSmallPromoCard({
-    required this.eyebrow,
-    required this.title,
-    required this.description,
-    required this.buttonLabel,
-    required this.backgroundColor,
-    required this.foregroundColor,
-    required this.buttonColor,
-    required this.assetPath,
-    required this.onTap,
-  });
-
-  final String eyebrow;
-  final String title;
-  final String description;
-  final String buttonLabel;
-  final Color backgroundColor;
-  final Color foregroundColor;
-  final Color buttonColor;
-  final String assetPath;
   final VoidCallback onTap;
 
   @override
@@ -1413,12 +1197,12 @@ class _HomeSmallPromoCard extends StatelessWidget {
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     final compactHome = textScale < 1.2;
     final cardHeight = textScale >= 1.45
-        ? 220.0
-        : (textScale >= 1.2 ? 188.0 : 112.0);
+        ? 148.0
+        : (textScale >= 1.2 ? 128.0 : 98.0);
 
     return Material(
-      color: backgroundColor,
-      borderRadius: BorderRadius.circular(18),
+      color: const Color(0xFFDDEEFF),
+      borderRadius: BorderRadius.circular(22),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
@@ -1427,13 +1211,25 @@ class _HomeSmallPromoCard extends StatelessWidget {
           child: Stack(
             children: [
               Positioned(
-                right: -8,
-                bottom: -8,
+                right: -34,
+                top: -54,
+                child: Container(
+                  width: 150,
+                  height: 150,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.22),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+              Positioned(
+                right: -6,
+                bottom: -10,
                 child: SizedBox(
-                  width: compactHome ? 64 : 92,
-                  height: compactHome ? 64 : 92,
+                  width: compactHome ? 88 : 102,
+                  height: compactHome ? 88 : 102,
                   child: Image.asset(
-                    assetPath,
+                    'assets/images/bomi/bomi_health_icon.png',
                     fit: BoxFit.contain,
                     alignment: Alignment.bottomRight,
                     excludeFromSemantics: true,
@@ -1441,79 +1237,79 @@ class _HomeSmallPromoCard extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding: EdgeInsets.fromLTRB(
-                  compactHome ? 12 : 15,
-                  compactHome ? 8 : 15,
-                  10,
-                  compactHome ? 7 : 13,
-                ),
+                padding: EdgeInsets.fromLTRB(16, 8, compactHome ? 82 : 94, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      eyebrow,
-                      maxLines: 1,
+                    const Text(
+                      '이번 주도 꾸준히!',
                       style: TextStyle(
-                        color: buttonColor,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
+                        color: AppColors.blue,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      title,
-                      style: TextStyle(
-                        color: foregroundColor,
-                        fontSize: compactHome ? 15 : 17,
-                        height: 1.08,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      description,
-                      maxLines: compactHome ? 1 : 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: const Color(0xFF66738F),
-                        fontSize: compactHome ? 8 : 9,
-                        height: 1.35,
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      constraints: const BoxConstraints(maxWidth: 112),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: compactHome ? 8 : 11,
-                        vertical: compactHome ? 4 : 7,
-                      ),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: buttonColor),
-                        borderRadius: BorderRadius.circular(999),
-                        color: Colors.white.withValues(alpha: 0.35),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              buttonLabel,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: buttonColor,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                              ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        const Text(
+                          '건강관리',
+                          style: TextStyle(
+                            color: AppColors.navy,
+                            fontSize: 18,
+                            height: 1.05,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: AppColors.blue),
+                              borderRadius: BorderRadius.circular(999),
+                              color: Colors.white.withValues(alpha: 0.42),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    '지금 시작하기',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: AppColors.blue,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(width: 2),
+                                Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: AppColors.blue,
+                                  size: 15,
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 2),
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            color: buttonColor,
-                            size: 14,
-                          ),
-                        ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      '오늘의 건강 미션을 확인해요.',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Color(0xFF66738F),
+                        fontSize: 10,
+                        height: 1.3,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
@@ -1525,4 +1321,485 @@ class _HomeSmallPromoCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DailyHealthGuide {
+  const _DailyHealthGuide({
+    required this.title,
+    required this.description,
+    required this.items,
+    required this.referenceTitle,
+    required this.referenceUrl,
+  });
+
+  final String title;
+  final String description;
+  final List<String> items;
+  final String referenceTitle;
+  final String referenceUrl;
+}
+
+const _dailyHealthGuides = <_DailyHealthGuide>[
+  _DailyHealthGuide(
+    title: '혈압, 정확하게 측정하려면?',
+    description: '가정에서도 같은 조건과 올바른 자세로 측정하는 것이 중요해요.',
+    items: [
+      '측정 전 약 5분간 편안하게 앉아 쉬어요.',
+      '등을 기대고 두 발을 바닥에 편안히 두어요.',
+      '팔을 심장 높이에 두고 커프를 알맞게 착용해요.',
+      '측정 중에는 말하지 않고 편안히 있어요.',
+    ],
+    referenceTitle: '고혈압',
+    referenceUrl:
+        'https://health.kdca.go.kr/healthinfo/biz/health/gnrlzHealthInfo/gnrlzHealthInfo/gnrlzHealthInfoView.do?cntnts_sn=6765',
+  ),
+  _DailyHealthGuide(
+    title: '나트륨, 일상에서 어떻게 줄일까요?',
+    description: '국·찌개와 가공식품에서 나트륨 섭취가 늘어날 수 있어요.',
+    items: [
+      '국과 찌개는 국물을 덜 먹는 습관을 실천해보세요.',
+      '가공식품은 영양성분표의 나트륨 함량을 확인해요.',
+      '양념과 소스는 필요한 만큼만 사용해요.',
+      '외식할 때도 짜지 않은 메뉴를 선택해보세요.',
+    ],
+    referenceTitle: '건강하게 염분 섭취하는 방법! 알려드리겠습니다!',
+    referenceUrl:
+        'https://health.kdca.go.kr/healthinfo/biz/health/gnrlzHealthInfo/gnrlzHealthInfo/gnrlzHealthInfoView.do?cntnts_sn=5335',
+  ),
+  _DailyHealthGuide(
+    title: '운동 전후 5~10분, 왜 필요할까요?',
+    description: '준비운동과 정리운동은 안전하게 운동하는 데 도움이 돼요.',
+    items: [
+      '본 운동 전 5~10분 가볍게 몸을 풀어요.',
+      '운동 강도는 자신의 체력과 건강상태에 맞춰요.',
+      '운동 후에도 5~10분 천천히 몸을 정리해요.',
+      '무리한 운동보다 꾸준한 실천이 중요해요.',
+    ],
+    referenceTitle: '운동',
+    referenceUrl:
+        'https://health.kdca.go.kr/healthinfo/biz/health/gnrlzHealthInfo/gnrlzHealthInfo/gnrlzHealthInfoView.do?cntnts_sn=5293',
+  ),
+  _DailyHealthGuide(
+    title: '영양성분표, 무엇부터 볼까요?',
+    description: '포장지의 강조 문구보다 실제 영양성분 함량을 확인해보세요.',
+    items: [
+      '먼저 1회 제공량과 총 내용량을 확인해요.',
+      '1일 영양성분 기준치(%)도 같이 보세요.',
+      '나트륨·당류·포화지방 함량을 비교해보세요.',
+      '\'무지방\', \'저당\' 같은 문구만 보지 말고 성분표를 확인해요.',
+    ],
+    referenceTitle: '영양표시 읽는 법! 알려드리겠습니다!',
+    referenceUrl:
+        'https://health.kdca.go.kr/healthinfo/biz/health/gnrlzHealthInfo/gnrlzHealthInfo/gnrlzHealthInfoView.do?cntnts_sn=6763',
+  ),
+  _DailyHealthGuide(
+    title: '건강한 식사, 무엇을 줄이고 채울까요?',
+    description: '열량만 줄이기보다 영양의 질을 같이 살펴보세요.',
+    items: [
+      '당이 많은 음료와 과자·디저트는 줄여보세요.',
+      '짠 가공식품과 국·찌개 국물 섭취를 줄여요.',
+      '채소와 통곡물 등 식이섬유를 챙겨요.',
+      '생선·견과류 등 불포화지방이 포함된 식품을 활용해요.',
+    ],
+    referenceTitle: '건강한 체중조절을 위한 식사',
+    referenceUrl:
+        'https://health.kdca.go.kr/healthinfo/biz/health/gnrlzHealthInfo/gnrlzHealthInfo/gnrlzHealthInfoView.do?cntnts_sn=6547',
+  ),
+  _DailyHealthGuide(
+    title: '심뇌혈관 건강, 지금부터 살펴보세요',
+    description: '고혈압·당뇨병·이상지질혈증 같은 위험요인을 조기에 알고 관리하는 것이 중요해요.',
+    items: [
+      '자신의 혈압·혈당·콜레스테롤 수치를 정기적으로 확인해요.',
+      '일상에서 꾸준히 움직이고 운동하는 습관을 만들어요.',
+      '짜고 달고 지방이 많은 식사를 줄여보세요.',
+      '건강검진 결과에서 이상이 있다면 필요한 진료를 받아요.',
+    ],
+    referenceTitle: '20대부터 시작하는 심뇌혈관질환 예방관리',
+    referenceUrl:
+        'https://health.kdca.go.kr/healthinfo/biz/health/ntcnInfo/healthSourc/thtimtCntnts/thtimtCntntsView.do?thtimt_cntnts_sn=176',
+  ),
+  _DailyHealthGuide(
+    title: '금연, 시작하는 순간부터 건강에 도움이 돼요',
+    description: '담배를 끊으면 건강은 바로 좋아지기 시작하며, 필요하면 상담과 전문적인 도움을 받을 수 있어요.',
+    items: [
+      '흡연과 간접흡연은 심혈관계를 포함한 건강에 해로울 수 있어요.',
+      '금연이 어렵다면 혼자 견디기보다 전문가의 상담과 도움을 활용해보세요.',
+      '보건소 금연클리닉과 금연상담전화 등 공공 지원서비스도 이용할 수 있어요.',
+      '전자담배도 안전한 금연 대체수단으로 보지 않는 것이 좋아요.',
+    ],
+    referenceTitle: '흡연',
+    referenceUrl:
+        'https://health.kdca.go.kr/healthinfo/biz/health/gnrlzHealthInfo/gnrlzHealthInfo/gnrlzHealthInfoView.do?cntnts_sn=6764',
+  ),
+];
+
+_DailyHealthGuide _dailyHealthGuideFor(DateTime now) {
+  final today = DateTime(now.year, now.month, now.day);
+  final firstDay = DateTime(now.year, 1, 1);
+  final dayIndex = today.difference(firstDay).inDays;
+
+  return _dailyHealthGuides[dayIndex % _dailyHealthGuides.length];
+}
+
+class _HomeHealthInfoSection extends StatelessWidget {
+  const _HomeHealthInfoSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final guide = _dailyHealthGuideFor(DateTime.now());
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '건강 안내',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: AppColors.navy,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFE4E9F3)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              _HomeHealthInfoRow(
+                icon: Icons.event_note_rounded,
+                iconBackground: Color(0xFFEAF1FF),
+                iconColor: AppColors.blue,
+                title: '진료·검사 준비 안내',
+                subtitle: '병원 안내와 준비사항을 미리 확인해요.',
+                onTap: () => _showPreparationGuide(context),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(left: 62),
+                child: Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: Color(0xFFEEF1F6),
+                ),
+              ),
+              _HomeHealthInfoRow(
+                icon: Icons.favorite_outline_rounded,
+                iconBackground: Color(0xFFFFF0F3),
+                iconColor: Color(0xFFE15C78),
+                title: '오늘의 건강 가이드',
+                subtitle: guide.title,
+                onTap: () => _showHealthGuide(context, guide),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HomeHealthInfoRow extends StatelessWidget {
+  const _HomeHealthInfoRow({
+    required this.icon,
+    required this.iconBackground,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final Color iconBackground;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 11, 10, 11),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: iconBackground,
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                alignment: Alignment.center,
+                child: Icon(icon, size: 20, color: iconColor),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.navy,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Color(0xFF7A879F),
+                        fontSize: 10.5,
+                        height: 1.35,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 21,
+                color: Color(0xFFA5AFC1),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+void _showPreparationGuide(BuildContext context) {
+  _showHealthInfoSheet(
+    context,
+    icon: Icons.event_note_rounded,
+    title: '진료·검사 준비 안내',
+    description: '방문 전 병원에서 안내받은 내용을 가장 먼저 확인해주세요.',
+    items: const [
+      '예약 시간과 방문 장소를 다시 확인해요.',
+      '금식이나 약 복용 안내를 받았다면 병원의 지시를 우선해요.',
+      '복용 중인 약과 알레르기 정보가 있다면 의료진에게 알려주세요.',
+      '이전 검사 결과나 진료 기록이 필요한지 미리 확인해요.',
+    ],
+  );
+}
+
+void _showHealthGuide(BuildContext context, _DailyHealthGuide guide) {
+  _showHealthInfoSheet(
+    context,
+    icon: Icons.favorite_outline_rounded,
+    title: guide.title,
+    description: guide.description,
+    items: guide.items,
+    referenceTitle: guide.referenceTitle,
+    referenceUrl: guide.referenceUrl,
+  );
+}
+
+Future<void> _openHealthReference(BuildContext context, String url) async {
+  final uri = Uri.parse(url);
+  final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+  if (!opened && context.mounted) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('참고 페이지를 열 수 없어요.')));
+  }
+}
+
+void _showHealthInfoSheet(
+  BuildContext context, {
+  required IconData icon,
+  required String title,
+  required String description,
+  required List<String> items,
+  String? referenceTitle,
+  String? referenceUrl,
+}) {
+  showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    backgroundColor: Colors.white,
+    builder: (sheetContext) {
+      return SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0F4FF),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                alignment: Alignment.center,
+                child: Icon(icon, color: AppColors.blue, size: 23),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                title,
+                style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(
+                  color: AppColors.navy,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 7),
+              Text(
+                description,
+                style: const TextStyle(
+                  color: Color(0xFF66738F),
+                  fontSize: 13,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 18),
+              for (final item in items) ...[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 22,
+                      height: 22,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEAF1FF),
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.check_rounded,
+                        size: 14,
+                        color: AppColors.blue,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 1),
+                        child: Text(
+                          item,
+                          style: const TextStyle(
+                            color: AppColors.navy,
+                            fontSize: 12.5,
+                            height: 1.45,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 13),
+              ],
+              if (referenceTitle != null && referenceUrl != null) ...[
+                const SizedBox(height: 2),
+                const Text(
+                  '참고',
+                  style: TextStyle(
+                    color: AppColors.navy,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Material(
+                  color: const Color(0xFFF7F9FD),
+                  borderRadius: BorderRadius.circular(13),
+                  clipBehavior: Clip.antiAlias,
+                  child: InkWell(
+                    onTap: () =>
+                        _openHealthReference(sheetContext, referenceUrl),
+                    child: Padding(
+                      padding: const EdgeInsets.all(13),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.menu_book_outlined,
+                            size: 20,
+                            color: AppColors.blue,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  '질병관리청 국가건강정보포털',
+                                  style: TextStyle(
+                                    color: Color(0xFF74819A),
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  referenceTitle,
+                                  style: const TextStyle(
+                                    color: AppColors.navy,
+                                    fontSize: 11.5,
+                                    height: 1.35,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          const Icon(
+                            Icons.open_in_new_rounded,
+                            size: 18,
+                            color: AppColors.blue,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+              ],
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(13),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF7F8FC),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Text(
+                  '개인별 진료·검사 지시가 있는 경우 해당 의료진의 안내를 우선해주세요.',
+                  style: TextStyle(
+                    color: Color(0xFF6E7A92),
+                    fontSize: 11,
+                    height: 1.45,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(),
+                  child: const Text('닫기'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
 }
