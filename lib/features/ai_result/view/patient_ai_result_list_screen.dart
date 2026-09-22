@@ -47,14 +47,45 @@ class _PatientAIResultListScreenState extends State<PatientAIResultListScreen> {
       return results;
     }
 
-    return results
+    final filtered = results
         .where(
           (result) => result.analysisType.trim().toUpperCase() == analysisType,
         )
         .toList();
+
+    if (analysisType != 'CLINICAL') {
+      return filtered;
+    }
+
+    // 새 API에서는 examination_id 기준으로 정확히 재실행 결과를 묶는다.
+    // 구 API에서는 같은 날짜의 최신 Clinical 결과만 표시한다.
+    final seenClinicalResults = <String>{};
+
+    return filtered.where((result) {
+      final examinationId = result.examinationId;
+      final generatedAt = result.generatedAt;
+
+      final key = examinationId != null
+          ? 'exam:$examinationId'
+          : 'date:${generatedAt.year}-'
+                '${generatedAt.month}-'
+                '${generatedAt.day}';
+
+      return seenClinicalResults.add(key);
+    }).toList();
   }
 
   // AI 결과 목록 새로고침
+  IconData get _emptyIcon {
+    final type = widget.analysisType?.trim().toUpperCase();
+
+    return switch (type) {
+      'ANGIO_2D' => Icons.monitor_heart_outlined,
+      'CCTA' => Icons.view_in_ar_rounded,
+      _ => Icons.insights_outlined,
+    };
+  }
+
   Future<void> _reload() async {
     final future = _loadResults();
 
@@ -76,6 +107,7 @@ class _PatientAIResultListScreenState extends State<PatientAIResultListScreen> {
         builder: (_) => PatientAIResultDetailScreen(
           repository: widget.repository,
           resultId: result.id,
+          title: widget.title,
         ),
       ),
     );
@@ -84,9 +116,21 @@ class _PatientAIResultListScreenState extends State<PatientAIResultListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text(widget.title),
+        primary: false,
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: Text(
+          widget.title,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         actions: [
           IconButton(
             tooltip: '새로고침',
@@ -115,6 +159,7 @@ class _PatientAIResultListScreenState extends State<PatientAIResultListScreen> {
             return _EmptyView(
               title: widget.emptyTitle,
               message: widget.emptyMessage,
+              icon: _emptyIcon,
               onRefresh: _reload,
             );
           }
@@ -156,8 +201,8 @@ class _PatientAIResultListScreenState extends State<PatientAIResultListScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text(
-                                  'AI 분석 결과',
+                                Text(
+                                  '${widget.title} 결과',
                                   style: TextStyle(
                                     fontSize: 17,
                                     fontWeight: FontWeight.w700,
@@ -224,11 +269,13 @@ class _EmptyView extends StatelessWidget {
   const _EmptyView({
     required this.title,
     required this.message,
+    required this.icon,
     required this.onRefresh,
   });
 
   final String title;
   final String message;
+  final IconData icon;
   final Future<void> Function() onRefresh;
 
   @override
@@ -240,11 +287,7 @@ class _EmptyView extends StatelessWidget {
         padding: const EdgeInsets.all(32),
         children: [
           const SizedBox(height: 100),
-          const Icon(
-            Icons.insights_outlined,
-            size: 56,
-            color: AppColors.mutedText,
-          ),
+          Icon(icon, size: 56, color: AppColors.mutedText),
           SizedBox(height: 18),
           Text(
             title,
@@ -296,6 +339,23 @@ class _ErrorView extends StatelessWidget {
 
 // 목록에서 사용할 환자용 결과 요약 선택
 String _summaryText(PatientAIResult result) {
+  if (
+    result.analysisType.trim().toUpperCase() == 'CLINICAL'
+  ) {
+    final probability =
+        result.clinical?.probability ?? result.confidence;
+
+    if (probability != null) {
+      final score =
+          (probability.clamp(0.0, 1.0) * 100)
+              .toStringAsFixed(1);
+
+      return 'AI 예측 점수 $score%';
+    }
+
+    return '심혈관 위험도 분석 결과를 확인해보세요.';
+  }
+
   final summary = result.summaryText.trim();
 
   if (summary.isNotEmpty) {

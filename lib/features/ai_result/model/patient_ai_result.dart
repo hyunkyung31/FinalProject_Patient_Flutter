@@ -14,6 +14,9 @@ class PatientAIResult {
     required this.cacScores,
     required this.explanations,
     this.keyFactors = const [],
+    this.images = const [],
+    this.examinationId,
+    this.clinical,
   });
 
   final int id;
@@ -30,6 +33,9 @@ class PatientAIResult {
   final List<PatientAICacScore> cacScores;
   final List<PatientAIExplanation> explanations;
   final List<PatientAIKeyFactor> keyFactors;
+  final List<PatientAIImage> images;
+  final int? examinationId;
+  final PatientAIClinical? clinical;
 
   // 환자 API JSON을 앱 모델로 변환
   factory PatientAIResult.fromJson(Map<String, dynamic> json) {
@@ -49,11 +55,67 @@ class PatientAIResult {
         json['explanations'],
         PatientAIExplanation.fromJson,
       ),
+      images: _parseList(json['images'], PatientAIImage.fromJson),
+      examinationId: _nullableInt(json['examination_id']),
+      clinical: _parseClinical(json),
     );
   }
 }
 
 // 협착·플라크 등 AI 탐지 결과
+// 환자용 Clinical AI 예측값
+class PatientAIClinical {
+  const PatientAIClinical({
+    this.probability,
+  });
+
+  final double? probability;
+
+  factory PatientAIClinical.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return PatientAIClinical(
+      probability: _nullableDouble(json['probability']),
+    );
+  }
+}
+
+
+// 환자에게 공개된 XCA/CCTA 파생 미리보기 이미지
+class PatientAIImage {
+  const PatientAIImage({
+    required this.kind,
+    required this.label,
+    required this.url,
+    this.expiresIn,
+    this.frameId,
+    this.sequenceNo,
+    this.frameIndex,
+  });
+
+  final String kind;
+  final String label;
+  final String url;
+  final int? expiresIn;
+
+  // XCA frame 이미지인 경우에만 제공될 수 있다.
+  final int? frameId;
+  final int? sequenceNo;
+  final int? frameIndex;
+
+  factory PatientAIImage.fromJson(Map<String, dynamic> json) {
+    return PatientAIImage(
+      kind: json['kind']?.toString() ?? '',
+      label: json['label']?.toString() ?? '',
+      url: json['url']?.toString() ?? '',
+      expiresIn: _nullableInt(json['expires_in']),
+      frameId: _nullableInt(json['frame_id']),
+      sequenceNo: _nullableInt(json['sequence_no']),
+      frameIndex: _nullableInt(json['frame_index']),
+    );
+  }
+}
+
 class PatientAIDetection {
   const PatientAIDetection({
     required this.findingType,
@@ -209,6 +271,47 @@ int _requiredInt(Object? value, String fieldName) {
   }
 
   return parsed;
+}
+
+PatientAIClinical? _parseClinical(
+  Map<String, dynamic> json,
+) {
+  final rawClinical = json['clinical'];
+
+  if (rawClinical is Map) {
+    return PatientAIClinical.fromJson(
+      Map<String, dynamic>.from(rawClinical),
+    );
+  }
+
+  // 구버전 API에서는 Clinical probability가 confidence에 저장되어 있다.
+  final analysisType =
+      json['analysis_type']?.toString().trim().toUpperCase();
+
+  if (analysisType == 'CLINICAL') {
+    return PatientAIClinical(
+      probability: _nullableDouble(json['confidence']),
+    );
+  }
+
+  return null;
+}
+
+// 숫자 또는 문자열 형태의 정수값 변환
+int? _nullableInt(Object? value) {
+  if (value == null) {
+    return null;
+  }
+
+  if (value is int) {
+    return value;
+  }
+
+  if (value is num) {
+    return value.toInt();
+  }
+
+  return int.tryParse(value.toString());
 }
 
 // 숫자 또는 문자열 형태의 소수값 변환
