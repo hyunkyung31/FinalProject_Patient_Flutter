@@ -13,12 +13,14 @@ import '../../chatbot/view/chatbot_conversation_list_screen.dart';
 import '../../chatbot/widgets/chatbot_overlay_host.dart';
 import '../../patient_services/repository/patient_services_repository.dart';
 import '../../patient_services/view/required_consent_screen.dart';
+import '../../onboarding/repository/feature_tour_repository.dart';
 
 enum _SessionPage {
   loading,
   biometric,
   login,
   consent,
+  featureTour,
   linked,
   unlinked,
   error,
@@ -51,8 +53,10 @@ class _SessionGateState extends State<SessionGate> {
       AuthRepository(apiClient: _client, tokenStorage: TokenStorage());
   late final _biometricAuthenticator =
       widget.biometricAuthenticator ?? BiometricAuthService();
+  final _featureTourRepository = FeatureTourRepository();
   _SessionPage _page = _SessionPage.loading;
   bool _authenticated = false;
+  bool? _patientLinked;
   String? _patientName;
   String _error = '';
   bool _logoutBusy = false;
@@ -233,9 +237,17 @@ class _SessionGateState extends State<SessionGate> {
 
       if (!mounted) return;
 
+      final seenFeatureTour = await _featureTourRepository.isCompleted();
+
+      if (!mounted) return;
+
       setState(() {
         _patientName = patientName;
-        _page = linked ? _SessionPage.linked : _SessionPage.unlinked;
+        _patientLinked = linked;
+
+        _page = seenFeatureTour
+            ? (linked ? _SessionPage.linked : _SessionPage.unlinked)
+            : _SessionPage.featureTour;
       });
 
       ChatbotOverlayController.instance.activate(_openChatbot);
@@ -273,6 +285,16 @@ class _SessionGateState extends State<SessionGate> {
     if (mounted) await _load();
   }
 
+  Future<void> _completeFeatureTour() async {
+    await _featureTourRepository.complete();
+    if (!mounted) return;
+    setState(() {
+      _page = _patientLinked == true
+          ? _SessionPage.linked
+          : _SessionPage.unlinked;
+    });
+  }
+
   @override
   void dispose() {
     ChatbotOverlayController.instance.deactivate();
@@ -303,6 +325,16 @@ class _SessionGateState extends State<SessionGate> {
           repository: _consentRepository,
           onCompleted: _load,
           onLogout: _confirmLogout,
+        );
+      case _SessionPage.featureTour:
+        return DashboardScreen(
+          patientLinked: _patientLinked,
+          patientName: _patientName,
+          onRefreshLink: _load,
+          reservationRepository: _reservationRepository,
+          onLogout: _confirmLogout,
+          startFeatureTour: true,
+          onFeatureTourFinished: _completeFeatureTour,
         );
       case _SessionPage.unlinked:
       case _SessionPage.linked:
