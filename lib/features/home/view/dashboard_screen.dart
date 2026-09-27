@@ -4,6 +4,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_preferences.dart';
 import '../../chatbot/widgets/chatbot_overlay_host.dart';
 import '../../onboarding/view/onboarding_screen.dart';
+import '../../onboarding/view/home_feature_tour_overlay.dart';
 import '../../reservation/view/reservation_list_screen.dart';
 import '../../reservation/view/reservation_screen.dart';
 import '../../reservation/model/patient_reservation.dart';
@@ -32,12 +33,16 @@ class DashboardScreen extends StatefulWidget {
     this.patientLinked,
     this.patientName,
     this.onRefreshLink,
+    this.startFeatureTour = false,
+    this.onFeatureTourFinished,
   });
 
   final bool? patientLinked;
   final String? patientName;
   final Future<void> Function()? onRefreshLink;
   final Future<void> Function()? onLogout;
+  final bool startFeatureTour;
+  final Future<void> Function()? onFeatureTourFinished;
   final ReservationRepository? reservationRepository;
 
   @override
@@ -47,6 +52,68 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   var _selectedIndex = 2;
   bool _showPrescription = false;
+  final _reservationKey = GlobalKey();
+  final _quickMenuKey = GlobalKey();
+  final _chatbotKey = GlobalKey();
+  final _healthTabKey = GlobalKey();
+  OverlayEntry? _featureTourOverlay;
+  bool _showingFeatureTour = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.startFeatureTour) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showFeatureTour());
+    }
+  }
+
+  void _showFeatureTour() {
+    if (!mounted || _showingFeatureTour) return;
+    if (_reservationKey.currentContext == null ||
+        _quickMenuKey.currentContext == null ||
+        _chatbotKey.currentContext == null ||
+        _healthTabKey.currentContext == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _showFeatureTour());
+      return;
+    }
+
+    _showingFeatureTour = true;
+    _featureTourOverlay = OverlayEntry(
+      builder: (_) => HomeFeatureTourOverlay(
+        reservationKey: _reservationKey,
+        quickMenuKey: _quickMenuKey,
+        chatbotKey: _chatbotKey,
+        healthTabKey: _healthTabKey,
+        onFinish: _finishFeatureTour,
+        onSkip: _skipFeatureTour,
+      ),
+    );
+    Overlay.of(context, rootOverlay: true).insert(_featureTourOverlay!);
+  }
+
+  void _dismissFeatureTour() {
+    _featureTourOverlay?.remove();
+    _featureTourOverlay = null;
+    _showingFeatureTour = false;
+  }
+
+  Future<void> _finishFeatureTour() async {
+    _dismissFeatureTour();
+    await Future<void>.delayed(const Duration(milliseconds: 180));
+    if (mounted) await showHomeTourTextScalePicker(context);
+    await widget.onFeatureTourFinished?.call();
+  }
+
+  Future<void> _skipFeatureTour() async {
+    _dismissFeatureTour();
+    await widget.onFeatureTourFinished?.call();
+  }
+
+  @override
+  void dispose() {
+    _dismissFeatureTour();
+    super.dispose();
+  }
 
   void _selectTab(int index) {
     setState(() {
@@ -93,6 +160,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           patientLinked: widget.patientLinked,
           patientName: widget.patientName,
           onRefreshLink: widget.onRefreshLink,
+          reservationKey: _reservationKey,
+          quickMenuKey: _quickMenuKey,
           embedded: true,
           onSelectTab: _selectTab,
           onOpenPrescription: () {
@@ -148,6 +217,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _PersistentTopBar(
             repository: widget.reservationRepository,
             tinted: _selectedIndex == 2,
+            onShowGuide: _showFeatureTour,
+            chatbotKey: _chatbotKey,
           ),
           Expanded(
             child: IndexedStack(
@@ -162,7 +233,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         indicatorColor: Theme.of(context).colorScheme.secondaryContainer,
         selectedIndex: _selectedIndex,
         onDestinationSelected: _selectTab,
-        destinations: const [
+        destinations: [
           NavigationDestination(
             icon: Icon(Icons.calendar_month_outlined),
             selectedIcon: Icon(Icons.calendar_month_rounded),
@@ -179,7 +250,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             label: '홈',
           ),
           NavigationDestination(
-            icon: Icon(Icons.favorite_border_rounded),
+            key: _healthTabKey,
+            icon: const Icon(Icons.favorite_border_rounded),
             selectedIcon: Icon(Icons.favorite_rounded),
             label: '건강관리',
           ),
@@ -218,10 +290,17 @@ class _ResultTabNavigator extends StatelessWidget {
 }
 
 class _PersistentTopBar extends StatelessWidget {
-  const _PersistentTopBar({required this.repository, required this.tinted});
+  const _PersistentTopBar({
+    required this.repository,
+    required this.tinted,
+    required this.onShowGuide,
+    required this.chatbotKey,
+  });
 
   final ReservationRepository? repository;
   final bool tinted;
+  final VoidCallback onShowGuide;
+  final GlobalKey chatbotKey;
 
   @override
   Widget build(BuildContext context) {
@@ -262,13 +341,7 @@ class _PersistentTopBar extends StatelessWidget {
               const _TextScaleButton(),
               IconButton(
                 tooltip: '\uC628\uBCF4\uB529',
-                onPressed: () => Navigator.of(context).push<void>(
-                  MaterialPageRoute(
-                    builder: (guideContext) => OnboardingScreen(
-                      onComplete: () async => Navigator.of(guideContext).pop(),
-                    ),
-                  ),
-                ),
+                onPressed: onShowGuide,
                 icon: Icon(
                   Icons.help_outline_rounded,
                   color: dark ? scheme.onSurface : AppColors.navy,
@@ -279,6 +352,7 @@ class _PersistentTopBar extends StatelessWidget {
               else
                 const SizedBox(width: 48),
               IconButton(
+                key: chatbotKey,
                 tooltip: '\uBCF4\uBBF8 \uCC57\uBD07',
                 onPressed: ChatbotOverlayController.instance.open,
                 icon: Icon(
@@ -301,6 +375,8 @@ class _DashboardHome extends StatelessWidget {
     this.patientLinked,
     this.patientName,
     this.onRefreshLink,
+    this.reservationKey,
+    this.quickMenuKey,
     this.embedded = false,
     this.onSelectTab,
     this.onOpenPrescription,
@@ -309,6 +385,8 @@ class _DashboardHome extends StatelessWidget {
   final String? patientName;
   final Future<void> Function()? onRefreshLink;
   final Future<void> Function()? onLogout;
+  final GlobalKey? reservationKey;
+  final GlobalKey? quickMenuKey;
   final ReservationRepository? reservationRepository;
   final bool embedded;
   final ValueChanged<int>? onSelectTab;
@@ -497,6 +575,7 @@ class _DashboardHome extends StatelessWidget {
             ];
 
             return SingleChildScrollView(
+              key: quickMenuKey,
               padding: const EdgeInsets.only(bottom: 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -624,6 +703,7 @@ class _DashboardHome extends StatelessWidget {
                         const SizedBox(height: 4),
 
                         _UpcomingReservationCard(
+                          key: reservationKey,
                           repository: reservationRepository,
                           compact: compact,
                           onOpenList: () => openReservations(context),
@@ -880,6 +960,7 @@ class _TextScaleButton extends StatelessWidget {
 
 class _UpcomingReservationCard extends StatefulWidget {
   const _UpcomingReservationCard({
+    super.key,
     required this.repository,
     required this.compact,
     required this.onOpenList,
