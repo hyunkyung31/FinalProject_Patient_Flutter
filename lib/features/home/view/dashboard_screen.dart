@@ -64,7 +64,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       case 1:
         if (widget.patientLinked == true && repository != null) {
-          return PatientResultHubScreen(repository: repository);
+          return _ResultTabNavigator(repository: repository);
         }
 
         if (repository != null) {
@@ -189,6 +189,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
             label: '설정',
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ResultTabNavigator extends StatelessWidget {
+  const _ResultTabNavigator({required this.repository});
+
+  final ReservationRepository repository;
+
+  @override
+  Widget build(BuildContext context) {
+    return MediaQuery.removePadding(
+      context: context,
+      removeTop: true,
+      child: Navigator(
+        onGenerateRoute: (settings) {
+          return MaterialPageRoute<void>(
+            settings: settings,
+            builder: (_) =>
+                PatientResultHubScreen(repository: repository, embedded: true),
+          );
+        },
       ),
     );
   }
