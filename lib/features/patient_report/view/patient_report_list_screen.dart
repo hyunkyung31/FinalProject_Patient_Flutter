@@ -98,7 +98,7 @@ class _ResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final summary = result.medicalResult.summary?.trim();
+    final summary = _patientVisibleSummary(result.medicalResult.summary);
 
     return Material(
       color: Colors.white,
@@ -167,6 +167,25 @@ class _ResultCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String? _patientVisibleSummary(String? raw) {
+  final text = raw?.trim();
+
+  if (text == null || text.isEmpty) {
+    return null;
+  }
+
+  final upper = text.toUpperCase();
+
+  // 내부 테스트/추적용 메타데이터는 환자 화면에 표시하지 않습니다.
+  if (upper.startsWith('[SYNTHETIC:') ||
+      upper.contains('PROGRESSION_GROUP=') ||
+      upper.contains('SEVERITY=')) {
+    return null;
+  }
+
+  return text;
 }
 
 class _EmptyView extends StatelessWidget {

@@ -139,6 +139,179 @@ class PatientReleasedResultDetail {
   }
 }
 
+class PatientIntegratedResult {
+  const PatientIntegratedResult({
+    required this.reportId,
+    required this.medicalResultId,
+    required this.status,
+    required this.patientVisible,
+    required this.ct,
+    required this.xca,
+    required this.approval,
+    this.finalOpinion,
+  });
+
+  final int reportId;
+  final int medicalResultId;
+  final String status;
+  final bool patientVisible;
+  final PatientIntegratedCt ct;
+  final PatientIntegratedXca xca;
+  final String? finalOpinion;
+  final PatientIntegratedApproval approval;
+
+  factory PatientIntegratedResult.fromJson(Map<String, dynamic> json) {
+    final ctJson = json['ct'];
+    final xcaJson = json['xca'];
+    final approvalJson = json['approval'];
+
+    if (ctJson is! Map) {
+      throw const FormatException('ct 형식이 올바르지 않습니다.');
+    }
+
+    if (xcaJson is! Map) {
+      throw const FormatException('xca 형식이 올바르지 않습니다.');
+    }
+
+    if (approvalJson is! Map) {
+      throw const FormatException('approval 형식이 올바르지 않습니다.');
+    }
+
+    return PatientIntegratedResult(
+      reportId: _requiredInt(json['report_id'], 'report_id'),
+      medicalResultId: _requiredInt(
+        json['medical_result_id'],
+        'medical_result_id',
+      ),
+      status: json['status']?.toString() ?? '',
+      patientVisible: json['patient_visible'] == true,
+      ct: PatientIntegratedCt.fromJson(Map<String, dynamic>.from(ctJson)),
+      xca: PatientIntegratedXca.fromJson(Map<String, dynamic>.from(xcaJson)),
+      finalOpinion: json['final_opinion']?.toString(),
+      approval: PatientIntegratedApproval.fromJson(
+        Map<String, dynamic>.from(approvalJson),
+      ),
+    );
+  }
+}
+
+class PatientIntegratedCt {
+  const PatientIntegratedCt({
+    required this.available,
+    required this.status,
+    this.summary,
+  });
+
+  final bool available;
+  final String status;
+
+  // CCTA AVAILABLE 실제 payload 구조가 확인되기 전까지
+  // 원본 값을 유지하고 UI에서는 안전하게 상태 중심으로 표시합니다.
+  final Object? summary;
+
+  bool get isPending => status.toUpperCase() == 'PENDING';
+
+  factory PatientIntegratedCt.fromJson(Map<String, dynamic> json) {
+    return PatientIntegratedCt(
+      available: json['available'] == true,
+      status: json['status']?.toString() ?? '',
+      summary: json['summary'],
+    );
+  }
+}
+
+class PatientIntegratedXca {
+  const PatientIntegratedXca({
+    required this.available,
+    required this.findings,
+    this.seriesCount,
+    this.frameCount,
+  });
+
+  final bool available;
+  final int? seriesCount;
+  final int? frameCount;
+  final List<PatientIntegratedXcaFinding> findings;
+
+  factory PatientIntegratedXca.fromJson(Map<String, dynamic> json) {
+    final rawFindings = json['findings'];
+
+    return PatientIntegratedXca(
+      available: json['available'] == true,
+      seriesCount: _nullableInt(json['series_count']),
+      frameCount: _nullableInt(json['frame_count']),
+      findings: rawFindings is List
+          ? rawFindings
+                .whereType<Map>()
+                .map(
+                  (item) => PatientIntegratedXcaFinding.fromJson(
+                    Map<String, dynamic>.from(item),
+                  ),
+                )
+                .toList()
+          : const [],
+    );
+  }
+}
+
+class PatientIntegratedXcaFinding {
+  const PatientIntegratedXcaFinding({
+    required this.id,
+    required this.attachmentIndex,
+    this.captureNo,
+    this.frameIndex,
+    this.doctorOpinion,
+    this.originalImageUrl,
+    this.overlayImageUrl,
+  });
+
+  final int id;
+  final int attachmentIndex;
+  final String? captureNo;
+  final int? frameIndex;
+  final String? doctorOpinion;
+  final String? originalImageUrl;
+  final String? overlayImageUrl;
+
+  factory PatientIntegratedXcaFinding.fromJson(Map<String, dynamic> json) {
+    return PatientIntegratedXcaFinding(
+      id: _requiredInt(json['id'], 'id'),
+      attachmentIndex: _requiredInt(
+        json['attachment_index'],
+        'attachment_index',
+      ),
+      captureNo: json['capture_no']?.toString(),
+      frameIndex: _nullableInt(json['frame_index']),
+      doctorOpinion: json['doctor_opinion']?.toString(),
+      originalImageUrl: json['original_image_url']?.toString(),
+      overlayImageUrl: json['overlay_image_url']?.toString(),
+    );
+  }
+}
+
+class PatientIntegratedApproval {
+  const PatientIntegratedApproval({
+    this.doctorName,
+    this.department,
+    this.approvedAt,
+    this.version,
+  });
+
+  final String? doctorName;
+  final String? department;
+  final DateTime? approvedAt;
+  final String? version;
+
+  factory PatientIntegratedApproval.fromJson(Map<String, dynamic> json) {
+    return PatientIntegratedApproval(
+      doctorName: json['doctor_name']?.toString(),
+      department: json['department']?.toString(),
+      approvedAt: _nullableDateTime(json['approved_at']),
+      version: json['version']?.toString(),
+    );
+  }
+}
+
 class PatientReportDownload {
   const PatientReportDownload({required this.report, required this.file});
 
