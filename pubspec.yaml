@@ -71,6 +71,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/doctor_sign/
     - assets/images/bomi/
     - assets/images/bomi/studio/
     - assets/images/reservation/backgrounds/

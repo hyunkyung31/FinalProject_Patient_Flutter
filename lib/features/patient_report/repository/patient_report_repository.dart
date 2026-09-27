@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 
 import '../../../core/network/api_client.dart';
@@ -29,6 +31,38 @@ class PatientReportRepository {
     results.sort((a, b) => b.releasedAt.compareTo(a.releasedAt));
 
     return results;
+  }
+
+  // 의료진 최종 승인·공개 시점의 통합 결과 스냅샷 조회
+  Future<PatientIntegratedResult> getIntegratedResult(int resultId) async {
+    final response = await client.dio.get<dynamic>(
+      '/api/patient/results/$resultId/integrated/',
+    );
+
+    final data = response.data;
+
+    if (data is! Map) {
+      throw const FormatException('통합 결과 형식이 올바르지 않습니다.');
+    }
+
+    return PatientIntegratedResult.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  // XCA 이미지는 환자 JWT가 필요한 보호 API이므로
+  // 기존 ApiClient(Dio)의 Authorization header를 그대로 사용합니다.
+  Future<Uint8List> getProtectedImage(String imagePath) async {
+    final response = await client.dio.get<List<int>>(
+      imagePath,
+      options: Options(responseType: ResponseType.bytes),
+    );
+
+    final data = response.data;
+
+    if (data == null || data.isEmpty) {
+      throw const FormatException('이미지 응답이 비어 있습니다.');
+    }
+
+    return Uint8List.fromList(data);
   }
 
   // 공개된 최종 결과 상세 조회

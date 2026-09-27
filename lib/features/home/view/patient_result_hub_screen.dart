@@ -7,6 +7,9 @@ import '../../lab_result/repository/lab_result_repository.dart';
 import '../../lab_result/view/lab_result_list_screen.dart';
 import '../../reservation/repository/reservation_repository.dart';
 
+import '../../patient_report/repository/patient_report_repository.dart';
+import '../../patient_report/view/patient_integrated_exam_screen.dart';
+
 class PatientResultHubScreen extends StatelessWidget {
   const PatientResultHubScreen({
     super.key,
@@ -87,8 +90,7 @@ class PatientResultHubScreen extends StatelessWidget {
                 analysisType: 'CLINICAL',
                 title: '심혈관 위험도',
                 emptyTitle: '공개된 심혈관 위험도 결과가 없어요.',
-                emptyMessage:
-                    '의료진 검토 후 공개된 결과가 있으면 이곳에서 확인할 수 있어요.',
+                emptyMessage: '의료진 검토 후 공개된 결과가 있으면 이곳에서 확인할 수 있어요.',
               ),
             ),
           ),
@@ -99,12 +101,9 @@ class PatientResultHubScreen extends StatelessWidget {
             subtitle: '공개된 관상동맥조영술 분석 결과를 확인해요.',
             onTap: () => _open(
               context,
-              PatientAIResultListScreen(
-                repository: PatientAIResultRepository(repository.client),
-                analysisType: 'ANGIO_2D',
-                title: '혈관조영술',
-                emptyTitle: '공개된 혈관조영술 결과가 없어요.',
-                emptyMessage: '검사 이력이 없거나 아직 의료진 검토·공개 전일 수 있어요.',
+              PatientIntegratedExamListScreen(
+                repository: PatientReportRepository(repository.client),
+                type: PatientIntegratedExamType.xca,
               ),
             ),
           ),
@@ -115,12 +114,9 @@ class PatientResultHubScreen extends StatelessWidget {
             subtitle: '공개된 혈관 CT 분석 결과를 확인해요.',
             onTap: () => _open(
               context,
-              PatientAIResultListScreen(
-                repository: PatientAIResultRepository(repository.client),
-                analysisType: 'CCTA',
-                title: '혈관 CT',
-                emptyTitle: '공개된 혈관 CT 결과가 없어요.',
-                emptyMessage: '검사 이력이 없거나 아직 의료진 검토·공개 전일 수 있어요.',
+              PatientIntegratedExamListScreen(
+                repository: PatientReportRepository(repository.client),
+                type: PatientIntegratedExamType.ct,
               ),
             ),
           ),

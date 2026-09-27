@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../ai_result/model/patient_ai_result.dart';
-import '../../ai_result/repository/patient_ai_result_repository.dart';
-import '../../ai_result/view/patient_ai_result_detail_screen.dart';
 import '../../lab_result/model/lab_result.dart';
 import '../../lab_result/repository/lab_result_repository.dart';
 import '../../lab_result/view/lab_result_detail_screen.dart';
 import '../model/patient_report.dart';
 import '../repository/patient_report_repository.dart';
+import 'patient_xca_composite_image.dart';
+import 'patient_ccta_image.dart';
 
 class PatientReportDetailScreen extends StatefulWidget {
   const PatientReportDetailScreen({
@@ -26,7 +26,7 @@ class PatientReportDetailScreen extends StatefulWidget {
 }
 
 class _PatientReportDetailScreenState extends State<PatientReportDetailScreen> {
-  late Future<PatientReleasedResultDetail> _future;
+  late Future<_ReportDetailBundle> _future;
 
   @override
   void initState() {
@@ -35,10 +35,22 @@ class _PatientReportDetailScreenState extends State<PatientReportDetailScreen> {
   }
 
   void _load() {
-    _future = widget.repository.getResult(widget.resultId);
+    _future = _loadReportDetail();
   }
 
-  // ?? ???? ??? ?? Encounter? ???? ??? ?????.
+  Future<_ReportDetailBundle> _loadReportDetail() async {
+    final detailFuture = widget.repository.getResult(widget.resultId);
+    final integratedFuture = widget.repository.getIntegratedResult(
+      widget.resultId,
+    );
+
+    return _ReportDetailBundle(
+      detail: await detailFuture,
+      integrated: await integratedFuture,
+    );
+  }
+
+  // 동일 Encounter의 혈액검사 상세
   void _openLabDetail(LabResultDetail detail) {
     Navigator.of(context).push<void>(
       MaterialPageRoute(
@@ -50,23 +62,11 @@ class _PatientReportDetailScreenState extends State<PatientReportDetailScreen> {
     );
   }
 
-  // ?? ???? ??? ?? Encounter? AI ?? ??? ?????.
-  void _openAiDetail(PatientAIResult result) {
-    Navigator.of(context).push<void>(
-      MaterialPageRoute(
-        builder: (_) => PatientAIResultDetailScreen(
-          repository: PatientAIResultRepository(widget.repository.client),
-          resultId: result.id,
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('심혈관 통합 리포트')),
-      body: FutureBuilder<PatientReleasedResultDetail>(
+      body: FutureBuilder<_ReportDetailBundle>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
@@ -82,16 +82,17 @@ class _PatientReportDetailScreenState extends State<PatientReportDetailScreen> {
             );
           }
 
-          final detail = snapshot.data;
+          final data = snapshot.data;
 
-          if (detail == null) {
+          if (data == null) {
             return const SizedBox.shrink();
           }
 
           return _DetailContent(
-            detail: detail,
+            detail: data.detail,
+            integrated: data.integrated,
+            repository: widget.repository,
             onOpenLabDetail: _openLabDetail,
-            onOpenAiDetail: _openAiDetail,
           );
         },
       ),
@@ -99,30 +100,31 @@ class _PatientReportDetailScreenState extends State<PatientReportDetailScreen> {
   }
 }
 
+class _ReportDetailBundle {
+  const _ReportDetailBundle({required this.detail, required this.integrated});
+
+  final PatientReleasedResultDetail detail;
+  final PatientIntegratedResult integrated;
+}
+
 class _DetailContent extends StatelessWidget {
   const _DetailContent({
     required this.detail,
+    required this.integrated,
+    required this.repository,
     required this.onOpenLabDetail,
-    required this.onOpenAiDetail,
   });
 
   final PatientReleasedResultDetail detail;
+  final PatientIntegratedResult integrated;
+  final PatientReportRepository repository;
   final void Function(LabResultDetail) onOpenLabDetail;
-  final void Function(PatientAIResult) onOpenAiDetail;
 
   @override
   Widget build(BuildContext context) {
     final result = detail.medicalResult;
     final summary = result.summary?.trim();
-    final conclusion = result.conclusion?.trim();
-
-    final xcaResults = detail.aiResults
-        .where((item) => item.analysisType.toUpperCase() == 'ANGIO_2D')
-        .toList();
-
-    final cctaResults = detail.aiResults
-        .where((item) => item.analysisType.toUpperCase() == 'CCTA')
-        .toList();
+    final finalOpinion = integrated.finalOpinion?.trim();
 
     final patientExplanations = <PatientAIExplanation>[];
     final explanationTexts = <String>{};
@@ -145,70 +147,115 @@ class _DetailContent extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _ReportHeroCard(dateText: _formatDate(result.updatedAt)),
-        const SizedBox(height: 20),
-
-        _SectionCard(
-          title: '한눈에 보는 요약',
-          icon: Icons.summarize_outlined,
-          highlighted: true,
-          child: Text(
-            summary == null || summary.isEmpty ? '등록된 결과 요약이 없습니다.' : summary,
-            style: const TextStyle(fontSize: 14, height: 1.6),
+        _ReportHeroCard(
+          dateText: _formatDate(
+            integrated.approval.approvedAt ?? result.updatedAt,
           ),
         ),
+        const SizedBox(height: 20),
+
+        if (summary != null && summary.isNotEmpty) ...[
+          _SectionCard(
+            title: '한눈에 보는 요약',
+            icon: Icons.summarize_outlined,
+            highlighted: true,
+            child: Text(
+              summary,
+              style: const TextStyle(fontSize: 14, height: 1.6),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+
+        const _ReportGroupHeader(
+          icon: Icons.fact_check_outlined,
+          title: '검사 결과',
+          subtitle: '공개된 검사 결과를 항목별로 확인할 수 있어요.',
+        ),
+        const SizedBox(height: 12),
 
         if (detail.labResults.isNotEmpty) ...[
-          const SizedBox(height: 16),
           _SectionCard(
             title: '혈액검사',
             icon: Icons.science_outlined,
             onActionTap: () => onOpenLabDetail(detail.labResults.first),
             child: _LabResultContent(results: detail.labResults),
           ),
+          const SizedBox(height: 12),
         ],
 
-        if (xcaResults.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _SectionCard(
-            title: '혈관조영술',
-            icon: Icons.monitor_heart_outlined,
-            onActionTap: () => onOpenAiDetail(xcaResults.first),
-            child: _XcaResultContent(results: xcaResults),
+        _SectionCard(
+          title: '혈관조영술',
+          icon: Icons.monitor_heart_outlined,
+          child: _IntegratedXcaResultContent(
+            repository: repository,
+            xca: integrated.xca,
           ),
-        ],
+        ),
 
-        if (cctaResults.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          _SectionCard(
-            title: '혈관 CT',
-            icon: Icons.view_in_ar_outlined,
-            onActionTap: () => onOpenAiDetail(cctaResults.first),
-            child: _CctaResultContent(results: cctaResults),
+        const SizedBox(height: 12),
+
+        _SectionCard(
+          title: '혈관 CT',
+          icon: Icons.view_in_ar_outlined,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _IntegratedCtResultContent(ct: integrated.ct),
+              if (integrated.ct.available) ...[
+                const SizedBox(height: 14),
+                PatientCctaImage(
+                  repository: repository,
+                  resultId: integrated.medicalResultId,
+                ),
+              ],
+            ],
           ),
-        ],
+        ),
 
         if (patientExplanations.isNotEmpty) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: 28),
+          const _ReportGroupHeader(
+            icon: Icons.auto_awesome_outlined,
+            title: '결과 설명',
+            subtitle: '검사 결과를 이해하기 쉽게 정리한 설명이에요.',
+          ),
+          const SizedBox(height: 12),
           _SectionCard(
             title: 'AI가 쉽게 설명해 드려요',
-            icon: Icons.auto_awesome_outlined,
+            icon: Icons.chat_bubble_outline_rounded,
             highlighted: true,
             child: _AIExplanationContent(explanations: patientExplanations),
           ),
         ],
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 28),
+
+        const _ReportGroupHeader(
+          icon: Icons.medical_information_outlined,
+          title: '의료진 확인',
+          subtitle: '의료진의 최종 확인 내용과 승인 정보를 확인하세요.',
+        ),
+        const SizedBox(height: 12),
 
         _SectionCard(
           title: '의료진 최종 소견',
-          icon: Icons.medical_information_outlined,
+          icon: Icons.notes_rounded,
           child: Text(
-            conclusion == null || conclusion.isEmpty
-                ? '등록된 의료진 결론이 없습니다.'
-                : conclusion,
+            finalOpinion == null || finalOpinion.isEmpty
+                ? '등록된 의료진 최종 소견이 없습니다.'
+                : finalOpinion,
             style: const TextStyle(fontSize: 14, height: 1.6),
           ),
+        ),
+
+        const SizedBox(height: 12),
+
+        _SectionCard(
+          title: '승인 정보',
+          icon: Icons.verified_user_outlined,
+          highlighted: true,
+          child: _IntegratedApprovalContent(approval: integrated.approval),
         ),
 
         const SizedBox(height: 16),
@@ -238,6 +285,64 @@ class _DetailContent extends StatelessWidget {
   }
 }
 
+class _ReportGroupHeader extends StatelessWidget {
+  const _ReportGroupHeader({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 0, 2, 2),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.blue.withValues(alpha: 0.09),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, size: 20, color: AppColors.blue),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.text,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1.4,
+                    color: AppColors.mutedText,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _LabResultContent extends StatelessWidget {
   const _LabResultContent({required this.results});
 
@@ -249,7 +354,7 @@ class _LabResultContent extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          '주요 심혈관 지표와 정상 범위를 벗어난 항목을 요약해서 보여드려요.',
+          '주요 혈액검사 수치와 참고 범위를 확인하세요.',
           style: TextStyle(
             fontSize: 12,
             height: 1.45,
@@ -269,18 +374,6 @@ class _LabResultContent extends StatelessWidget {
             const SizedBox(height: 16),
           ],
 
-          if (results[resultIndex].result.summaryText.trim().isNotEmpty) ...[
-            Text(
-              results[resultIndex].result.summaryText.trim(),
-              style: const TextStyle(
-                fontSize: 13,
-                height: 1.5,
-                color: AppColors.mutedText,
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-
           Builder(
             builder: (context) {
               final measurements = _reportLabMeasurements(
@@ -289,7 +382,7 @@ class _LabResultContent extends StatelessWidget {
 
               if (measurements.isEmpty) {
                 return const Text(
-                  '??? ?? ???? ??? ????. ?? ??? ?????? ??? ? ???.',
+                  '표시할 주요 혈액검사 항목이 없습니다. 전체 결과는 상세 화면에서 확인해 주세요.',
                   style: TextStyle(
                     fontSize: 13,
                     height: 1.5,
@@ -322,152 +415,512 @@ class _LabResultContent extends StatelessWidget {
   }
 }
 
-class _XcaResultContent extends StatelessWidget {
-  const _XcaResultContent({required this.results});
+class _IntegratedXcaResultContent extends StatefulWidget {
+  const _IntegratedXcaResultContent({
+    required this.repository,
+    required this.xca,
+  });
 
-  final List<PatientAIResult> results;
+  final PatientReportRepository repository;
+  final PatientIntegratedXca xca;
+
+  @override
+  State<_IntegratedXcaResultContent> createState() =>
+      _IntegratedXcaResultContentState();
+}
+
+class _IntegratedXcaResultContentState
+    extends State<_IntegratedXcaResultContent> {
+  bool _showAll = false;
 
   @override
   Widget build(BuildContext context) {
+    final xca = widget.xca;
+
+    if (!xca.available || xca.findings.isEmpty) {
+      return const Text(
+        '이 리포트에 공개된 혈관조영술 결과가 없습니다.',
+        style: TextStyle(fontSize: 13, height: 1.5, color: AppColors.mutedText),
+      );
+    }
+
+    final findings = _showAll ? xca.findings : xca.findings.take(1).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (
-          var resultIndex = 0;
-          resultIndex < results.length;
-          resultIndex++
-        ) ...[
-          if (resultIndex > 0) ...[
-            const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.blue.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Column(
+            children: [
+              _ValueRow(
+                label: '촬영 시리즈',
+                value: xca.seriesCount?.toString() ?? '-',
+              ),
+              const SizedBox(height: 9),
+              _ValueRow(
+                label: '전체 프레임',
+                value: xca.frameCount?.toString() ?? '-',
+              ),
+              const SizedBox(height: 9),
+              _ValueRow(label: '확인 소견', value: '${xca.findings.length}건'),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        for (var index = 0; index < findings.length; index++) ...[
+          if (index > 0) ...[
+            const SizedBox(height: 18),
             const Divider(height: 1),
-            const SizedBox(height: 16),
+            const SizedBox(height: 18),
           ],
+          _IntegratedXcaFindingContent(
+            repository: widget.repository,
+            finding: findings[index],
+            number: index + 1,
+          ),
+        ],
 
-          if (results[resultIndex].summaryText.trim().isNotEmpty) ...[
-            Text(
-              results[resultIndex].summaryText.trim(),
-              style: const TextStyle(
-                fontSize: 13,
-                height: 1.5,
-                color: AppColors.mutedText,
+        if (xca.findings.length > 1) ...[
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _showAll = !_showAll;
+                });
+              },
+              icon: Icon(
+                _showAll
+                    ? Icons.expand_less_rounded
+                    : Icons.expand_more_rounded,
+              ),
+              label: Text(
+                _showAll ? '대표 영상만 보기' : '전체 ${xca.findings.length}건 보기',
               ),
             ),
-            const SizedBox(height: 12),
-          ],
-
-          if (results[resultIndex].lesions.isNotEmpty)
-            ...results[resultIndex].lesions.map(
-              (lesion) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _ValueRow(
-                  label: _lesionLabel(lesion),
-                  value: lesion.stenosisPercent == null
-                      ? '협착 정도 미제공'
-                      : '${_compactNumber(lesion.stenosisPercent!)}% 협착',
-                  detail: lesion.severityGrade.trim().isEmpty
-                      ? null
-                      : '중증도 ${lesion.severityGrade}',
-                ),
-              ),
-            )
-          else if (results[resultIndex].detections.isNotEmpty)
-            ...results[resultIndex].detections.map(
-              (detection) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _ValueRow(
-                  label: detection.arterySegment.trim().isEmpty
-                      ? '협착 탐지'
-                      : detection.arterySegment,
-                  value: detection.findingType.trim().isEmpty
-                      ? 'AI 탐지 결과'
-                      : detection.findingType,
-                  detail: detection.severity.trim().isEmpty
-                      ? null
-                      : '중증도 ${detection.severity}',
-                ),
-              ),
-            ),
+          ),
         ],
       ],
     );
   }
 }
 
-class _CctaResultContent extends StatelessWidget {
-  const _CctaResultContent({required this.results});
+class _IntegratedXcaFindingContent extends StatelessWidget {
+  const _IntegratedXcaFindingContent({
+    required this.repository,
+    required this.finding,
+    required this.number,
+  });
 
-  final List<PatientAIResult> results;
+  final PatientReportRepository repository;
+  final PatientIntegratedXcaFinding finding;
+  final int number;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (
-          var resultIndex = 0;
-          resultIndex < results.length;
-          resultIndex++
-        ) ...[
-          if (resultIndex > 0) ...[
-            const SizedBox(height: 16),
-            const Divider(height: 1),
-            const SizedBox(height: 16),
-          ],
+    final original = finding.originalImageUrl?.trim();
+    final overlay = finding.overlayImageUrl?.trim();
+    final opinion = finding.doctorOpinion?.trim();
 
-          if (results[resultIndex].summaryText.trim().isNotEmpty) ...[
-            Text(
-              results[resultIndex].summaryText.trim(),
-              style: const TextStyle(
-                fontSize: 13,
-                height: 1.5,
-                color: AppColors.mutedText,
+    final metadata = <String>[
+      if (finding.captureNo != null) '촬영 ${finding.captureNo}',
+      if (finding.frameIndex != null) 'Frame ${finding.frameIndex}',
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.018),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.055)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.blue.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$number',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.blue,
+                  ),
+                ),
               ),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text(
+                  '확인 영상',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+
+          if (metadata.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: metadata
+                  .map(
+                    (item) => Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.035),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        item,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.mutedText,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
             ),
-            const SizedBox(height: 12),
           ],
 
-          if (results[resultIndex].cacScores.isEmpty)
-            const Text(
-              '표시할 석회화 점수 정보가 없습니다.',
-              style: TextStyle(fontSize: 13, color: AppColors.mutedText),
-            )
-          else
-            ...results[resultIndex].cacScores.map(
-              (score) => Column(
+          if (opinion != null && opinion.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.blue.withValues(alpha: 0.055),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _ValueRow(
-                    label: 'CAC 총점',
-                    value: _nullableNumber(score.scoreValue),
-                    detail: score.riskCategory.trim().isEmpty
-                        ? null
-                        : '위험 분류 ${score.riskCategory}',
+                  const Row(
+                    children: [
+                      Icon(
+                        Icons.medical_information_outlined,
+                        size: 16,
+                        color: AppColors.blue,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        '의료진 확인 내용',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.blue,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 10),
-                  _ValueRow(
-                    label: 'LAD',
-                    value: _nullableNumber(score.ladScore),
+                  const SizedBox(height: 7),
+                  Text(
+                    opinion,
+                    style: const TextStyle(fontSize: 13, height: 1.5),
                   ),
-                  const SizedBox(height: 10),
-                  _ValueRow(
-                    label: 'LCX',
-                    value: _nullableNumber(score.lcxScore),
-                  ),
-                  const SizedBox(height: 10),
-                  _ValueRow(
-                    label: 'RCA',
-                    value: _nullableNumber(score.rcaScore),
-                  ),
-                  if (score.percentile != null) ...[
-                    const SizedBox(height: 10),
-                    _ValueRow(
-                      label: '백분위',
-                      value: '${_compactNumber(score.percentile!)}%',
-                    ),
-                  ],
                 ],
               ),
             ),
+          ],
+
+          if (original != null && original.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            PatientXcaCompositeImage(
+              repository: repository,
+              originalPath: original,
+              overlayPath: overlay,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _IntegratedCtResultContent extends StatelessWidget {
+  const _IntegratedCtResultContent({required this.ct});
+
+  final PatientIntegratedCt ct;
+
+  @override
+  Widget build(BuildContext context) {
+    if (ct.isPending) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.blue.withValues(alpha: 0.045),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ResultStatusIcon(icon: Icons.schedule_rounded),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '분석 대기 중',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                  ),
+                  SizedBox(height: 5),
+                  Text(
+                    '분석이 완료되고 의료진의 확인을 거친 뒤 결과가 표시됩니다.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.5,
+                      color: AppColors.mutedText,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (!ct.available) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.025),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: const Row(
+          children: [
+            Icon(
+              Icons.info_outline_rounded,
+              size: 19,
+              color: AppColors.mutedText,
+            ),
+            SizedBox(width: 9),
+            Expanded(
+              child: Text(
+                '이 리포트에 공개된 혈관 CT 결과가 없습니다.',
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.5,
+                  color: AppColors.mutedText,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final summary = ct.summary;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            color: AppColors.blue.withValues(alpha: 0.045),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: const Row(
+            children: [
+              _ResultStatusIcon(icon: Icons.check_rounded),
+              SizedBox(width: 10),
+              Text(
+                '분석 완료',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (summary is String && summary.trim().isNotEmpty)
+          Text(
+            summary.trim(),
+            style: const TextStyle(fontSize: 13, height: 1.55),
+          )
+        else
+          const Text(
+            '분석이 완료되었습니다. 세부 결과는 의료진 설명과 함께 확인해 주세요.',
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.5,
+              color: AppColors.mutedText,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _ResultStatusIcon extends StatelessWidget {
+  const _ResultStatusIcon({required this.icon});
+
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        color: AppColors.blue.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(11),
+      ),
+      child: Icon(icon, size: 19, color: AppColors.blue),
+    );
+  }
+}
+
+class _IntegratedApprovalContent extends StatelessWidget {
+  const _IntegratedApprovalContent({required this.approval});
+
+  final PatientIntegratedApproval approval;
+
+  @override
+  Widget build(BuildContext context) {
+    final doctor = approval.doctorName?.trim();
+    final department = approval.department?.trim();
+    final signatureAsset = _doctorSignatureAsset(doctor);
+
+    final doctorText = doctor != null && doctor.isNotEmpty
+        ? doctor
+        : '의료진 정보 없음';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.72),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AppColors.blue.withValues(alpha: 0.10)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.blue.withValues(alpha: 0.09),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  Icons.person_outline_rounded,
+                  color: AppColors.blue,
+                  size: 23,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      doctorText,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (department != null && department.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        department,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.mutedText,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: AppColors.blue.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  '승인 완료',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.blue,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 14),
+
+        _ValueRow(
+          label: '승인 일시',
+          value: approval.approvedAt == null
+              ? '정보 없음'
+              : _formatDateTime(approval.approvedAt!),
+        ),
+        const SizedBox(height: 9),
+        _ValueRow(
+          label: '보고서 버전',
+          value: approval.version?.trim().isNotEmpty == true
+              ? approval.version!.trim()
+              : '정보 없음',
+        ),
+
+        if (signatureAsset != null) ...[
+          const SizedBox(height: 14),
+          const Divider(height: 1),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const Expanded(
+                child: Text(
+                  '의료진 서명',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.mutedText,
+                  ),
+                ),
+              ),
+              Image.asset(
+                signatureAsset,
+                width: 145,
+                height: 68,
+                fit: BoxFit.contain,
+              ),
+            ],
+          ),
         ],
       ],
     );
@@ -575,7 +1028,7 @@ List<LabMeasurement> _reportLabMeasurements(List<LabMeasurement> measurements) {
   final selected = <LabMeasurement>[];
   final selectedIds = <int>{};
 
-  // ??? ?? ?? ??
+  // 심혈관 주요 항목 우선
   for (final measurement in measurements) {
     if (_cardiovascularLabPriority(measurement) < 100) {
       selected.add(measurement);
@@ -583,7 +1036,7 @@ List<LabMeasurement> _reportLabMeasurements(List<LabMeasurement> measurements) {
     }
   }
 
-  // ?? ?? ? ??? ????? ????? ?? ?????.
+  // 주요 항목 외 HIGH/LOW도 함께 표시
   for (final measurement in measurements) {
     final flag = measurement.normalizedFlag;
 
@@ -621,21 +1074,21 @@ int _cardiovascularLabPriority(LabMeasurement measurement) {
     return 20;
   }
 
-  if (code == 'TG' || code.contains('TRIGLYCERIDE') || name.contains('????')) {
+  if (code == 'TG' || code.contains('TRIGLYCERIDE') || name.contains('중성지방')) {
     return 30;
   }
 
   if (code == 'TC' ||
       code == 'CHOL' ||
       code.contains('CHOLESTEROL') ||
-      name.contains('??????')) {
+      name.contains('총콜레스테롤')) {
     return 40;
   }
 
   if (code == 'FBS' ||
       code == 'GLU' ||
       code.contains('GLUCOSE') ||
-      name.contains('????')) {
+      (name.contains('공복혈당') || name.contains('혈당') || name.contains('포도당'))) {
     return 50;
   }
 
@@ -643,7 +1096,7 @@ int _cardiovascularLabPriority(LabMeasurement measurement) {
 }
 
 String _normalizeLabText(String value) {
-  return value.trim().toUpperCase().replaceAll(RegExp(r'[^A-Z0-9?-?]'), '');
+  return value.trim().toUpperCase().replaceAll(RegExp(r'[^A-Z0-9가-힣]'), '');
 }
 
 String _measurementValue(LabMeasurement measurement) {
@@ -681,36 +1134,6 @@ String? _measurementDetail(LabMeasurement measurement) {
   }
 
   return parts.isEmpty ? null : parts.join(' · ');
-}
-
-String _lesionLabel(PatientAILesion lesion) {
-  final parts = <String>[
-    if (lesion.arteryName.trim().isNotEmpty) lesion.arteryName.trim(),
-    if (lesion.segmentName.trim().isNotEmpty) lesion.segmentName.trim(),
-  ];
-
-  return parts.isEmpty ? '관상동맥 병변' : parts.join(' · ');
-}
-
-String _nullableNumber(double? value) {
-  if (value == null) {
-    return '-';
-  }
-
-  return _compactNumber(value);
-}
-
-String _compactNumber(num value) {
-  final doubleValue = value.toDouble();
-
-  if (doubleValue == doubleValue.roundToDouble()) {
-    return doubleValue.toStringAsFixed(0);
-  }
-
-  return doubleValue
-      .toStringAsFixed(2)
-      .replaceFirst(RegExp(r'0+$'), '')
-      .replaceFirst(RegExp(r'\.$'), '');
 }
 
 class _ReportHeroCard extends StatelessWidget {
@@ -834,25 +1257,40 @@ class _SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(17),
       decoration: BoxDecoration(
         color: highlighted
-            ? AppColors.blue.withValues(alpha: 0.04)
+            ? AppColors.blue.withValues(alpha: 0.035)
             : Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: highlighted
               ? AppColors.blue.withValues(alpha: 0.14)
-              : Colors.black.withValues(alpha: 0.06),
+              : Colors.black.withValues(alpha: 0.055),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.025),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 21, color: AppColors.blue),
-              const SizedBox(width: 8),
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: AppColors.blue.withValues(alpha: 0.085),
+                  borderRadius: BorderRadius.circular(11),
+                ),
+                child: Icon(icon, size: 19, color: AppColors.blue),
+              ),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   title,
@@ -862,31 +1300,29 @@ class _SectionCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (onActionTap != null) ...[
-                const SizedBox(width: 8),
+              if (onActionTap != null)
                 TextButton(
                   onPressed: onActionTap,
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 5,
+                      horizontal: 6,
+                      vertical: 4,
                     ),
-                    minimumSize: const Size(0, 34),
+                    minimumSize: const Size(0, 32),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Text('상세보기'),
-                      const SizedBox(width: 2),
-                      const Icon(Icons.chevron_right_rounded, size: 18),
+                      Text('상세보기', style: TextStyle(fontSize: 12)),
+                      SizedBox(width: 1),
+                      Icon(Icons.chevron_right_rounded, size: 17),
                     ],
                   ),
                 ),
-              ],
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 15),
           child,
         ],
       ),
@@ -924,4 +1360,37 @@ String _formatDate(DateTime date) {
   final day = date.day.toString().padLeft(2, '0');
 
   return '$year.$month.$day';
+}
+
+String? _doctorSignatureAsset(String? doctorName) {
+  const signatures = <String, String>{
+    '김도윤': 'assets/doctor_sign/doctor01_signature.png',
+    '이서준': 'assets/doctor_sign/doctor02_signature.png',
+    '박지훈': 'assets/doctor_sign/doctor03_signature.png',
+    '최현우': 'assets/doctor_sign/doctor04_signature.png',
+    '정민재': 'assets/doctor_sign/doctor05_signature.png',
+    '강태윤': 'assets/doctor_sign/doctor06_signature.png',
+    '조성민': 'assets/doctor_sign/doctor07_signature.png',
+    '윤재호': 'assets/doctor_sign/doctor08_signature.png',
+    '장우진': 'assets/doctor_sign/doctor09_signature.png',
+    '임현석': 'assets/doctor_sign/doctor10_signature.png',
+  };
+
+  final name = doctorName?.trim();
+
+  if (name == null || name.isEmpty) {
+    return null;
+  }
+
+  return signatures[name];
+}
+
+String _formatDateTime(DateTime value) {
+  final local = value.toLocal();
+
+  return '${local.year}.'
+      '${local.month.toString().padLeft(2, '0')}.'
+      '${local.day.toString().padLeft(2, '0')} '
+      '${local.hour.toString().padLeft(2, '0')}:'
+      '${local.minute.toString().padLeft(2, '0')}';
 }
