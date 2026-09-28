@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../onboarding/repository/onboarding_repository.dart';
 import '../../onboarding/view/onboarding_screen.dart';
+import '../widgets/bomi_startup_splash.dart';
 import '../../auth/view/session_gate.dart';
 
 class StartupScreen extends StatefulWidget {
@@ -13,8 +14,14 @@ class StartupScreen extends StatefulWidget {
 
 class _StartupScreenState extends State<StartupScreen> {
   late final _repository = widget.repository ?? OnboardingRepository();
-  late Future<bool> _completed = _repository.isCompleted();
+  late Future<bool> _completed = _loadStartup();
   bool _finished = false;
+
+  Future<bool> _loadStartup() async {
+    final completed = _repository.isCompleted();
+    await Future<void>.delayed(const Duration(milliseconds: 1900));
+    return completed;
+  }
 
   Future<void> _finish() async {
     await _repository.complete();
@@ -36,9 +43,8 @@ class _StartupScreenState extends State<StartupScreen> {
                       children: [
                         const Text('앱 설정을 불러오지 못했어요.'),
                         FilledButton(
-                          onPressed: () => setState(
-                            () => _completed = _repository.isCompleted(),
-                          ),
+                          onPressed: () =>
+                              setState(() => _completed = _loadStartup()),
                           child: const Text('다시 시도'),
                         ),
                       ],
@@ -48,9 +54,7 @@ class _StartupScreenState extends State<StartupScreen> {
               );
             }
             if (!snapshot.hasData) {
-              return const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              );
+              return const BomiStartupSplash();
             }
             return snapshot.data!
                 ? const SessionGate()

@@ -52,60 +52,58 @@ class _BomiStudioScreenState extends State<BomiStudioScreen> {
       name: '기본 홈웨어',
       previewFile: 'wear_outfit_basic_homewear.png',
       painterFile: 'wear_outfit_basic_homewear.png',
-      price: 0,
       isDefault: true,
     ),
     _StudioItem(
       name: '핑크 운동복',
       previewFile: 'shop_outfit_pink_training_set.png',
       painterFile: 'wear_outfit_pink_training_set.png',
-      price: 250,
       rewardCode: 'BOMI_OUTFIT_PINK_TRAINING',
+      growthThreshold: 0,
     ),
     _StudioItem(
       name: '토끼 후드티',
       previewFile: 'shop_outfit_blue_bunny_hoodie.png',
       painterFile: 'wear_outfit_blue_bunny_hoodie.png',
-      price: 350,
       rewardCode: 'BOMI_OUTFIT_BLUE_BUNNY_HOODIE',
+      growthThreshold: 40,
     ),
     _StudioItem(
       name: '노란 레인코트',
       previewFile: 'shop_outfit_yellow_raincoat.png',
       painterFile: 'wear_outfit_yellow_raincoat.png',
-      price: 450,
       rewardCode: 'BOMI_OUTFIT_YELLOW_RAINCOAT',
+      growthThreshold: 80,
     ),
   ];
 
   static const _accessories = <_StudioItem>[
-    _StudioItem(name: '착용 안 함', price: 0, isDefault: true),
+    _StudioItem(name: '착용 안 함', isDefault: true),
     _StudioItem(
       name: '하트 리본',
       previewFile: 'acc_heart_ribbon.png',
       painterFile: 'acc_heart_ribbon.png',
-      price: 100,
       rewardCode: 'BOMI_ACC_HEART_RIBBON',
+      growthThreshold: 0,
     ),
     _StudioItem(
       name: '새싹 모자',
       previewFile: 'acc_sprout_cap.png',
       painterFile: 'acc_sprout_cap.png',
-      price: 180,
       rewardCode: 'BOMI_ACC_SPROUT_CAP',
+      growthThreshold: 20,
     ),
     _StudioItem(
       name: '하트 선글라스',
       previewFile: 'acc_heart_sunglasses.png',
       painterFile: 'acc_heart_sunglasses.png',
-      price: 250,
       rewardCode: 'BOMI_ACC_HEART_SUNGLASSES',
+      growthThreshold: 60,
     ),
     _StudioItem(
       name: '새싹 머리핀',
       previewFile: 'acc_seed_hairpin_reward.png',
       painterFile: 'acc_seed_hairpin_reward.png',
-      price: 0,
       rewardCode: 'BOMI_ACC_GROWTH_SEED_HAIRPIN',
       growthThreshold: 200,
     ),
@@ -113,7 +111,6 @@ class _BomiStudioScreenState extends State<BomiStudioScreen> {
       name: '반짝 메달',
       previewFile: 'acc_shining_medal_reward.png',
       painterFile: 'acc_shining_medal_reward.png',
-      price: 0,
       rewardCode: 'BOMI_ACC_GROWTH_SHINING_MEDAL',
       growthThreshold: 600,
     ),
@@ -121,7 +118,6 @@ class _BomiStudioScreenState extends State<BomiStudioScreen> {
       name: '두근 마스터 배지',
       previewFile: 'acc_trophy_badge_reward.png',
       painterFile: 'acc_trophy_badge_reward.png',
-      price: 0,
       rewardCode: 'BOMI_ACC_GROWTH_TROPHY_BADGE',
       growthThreshold: 3000,
     ),
@@ -132,22 +128,21 @@ class _BomiStudioScreenState extends State<BomiStudioScreen> {
       name: '햇살 스튜디오',
       previewFile: 'bg_studio_default.png',
       painterFile: 'bg_studio_default.png',
-      price: 0,
       isDefault: true,
     ),
     _StudioItem(
       name: '호숫가 공원',
       previewFile: 'bg_park_lakeside.png',
       painterFile: 'bg_park_lakeside.png',
-      price: 500,
       rewardCode: 'BOMI_BG_PARK_LAKESIDE',
+      growthThreshold: 100,
     ),
     _StudioItem(
       name: '두근 비치',
       previewFile: 'bg_beach_pastel.png',
       painterFile: 'bg_beach_pastel.png',
-      price: 700,
       rewardCode: 'BOMI_BG_BEACH_PASTEL',
+      growthThreshold: 150,
     ),
   ];
 
@@ -156,8 +151,6 @@ class _BomiStudioScreenState extends State<BomiStudioScreen> {
 
   PointAccount? _account;
   RewardOverview? _overview;
-
-  final Set<int> _redeemingRewardIds = {};
 
   bool _equipmentSyncAvailable = true;
   bool _savingEquipment = false;
@@ -220,7 +213,7 @@ class _BomiStudioScreenState extends State<BomiStudioScreen> {
 
       setState(() {
         _loading = false;
-        _error = '보미 스튜디오를 불러오지 못했어요.\n$error';
+        _error = '보미 꾸미기를 불러오지 못했어요.\n$error';
       });
     }
   }
@@ -321,7 +314,7 @@ class _BomiStudioScreenState extends State<BomiStudioScreen> {
 
     _preview(item);
 
-    // 일반 구매 상품은 구매 전 미리보기까지만 허용한다.
+    // 해금되지 않은 아이템은 장착하지 않는다.
     if (!owned) {
       return;
     }
@@ -419,19 +412,6 @@ class _BomiStudioScreenState extends State<BomiStudioScreen> {
     };
   }
 
-  RewardCatalog? _availableRewardFor(_StudioItem item) {
-    final rewardCode = item.rewardCode;
-    if (rewardCode == null) return null;
-
-    for (final reward in _overview?.available ?? const <RewardCatalog>[]) {
-      if (reward.rewardCode == rewardCode) {
-        return reward;
-      }
-    }
-
-    return null;
-  }
-
   PatientReward? _acquiredRewardFor(_StudioItem item) {
     final rewardCode = item.rewardCode;
     if (rewardCode == null) return null;
@@ -450,11 +430,17 @@ class _BomiStudioScreenState extends State<BomiStudioScreen> {
   }
 
   bool _isOwned(_StudioItem item) {
-    return item.isDefault || _acquiredRewardFor(item) != null;
-  }
+    if (item.isDefault || _acquiredRewardFor(item) != null) {
+      return true;
+    }
 
-  int _displayPrice(_StudioItem item) {
-    return _availableRewardFor(item)?.requiredPoints ?? item.price;
+    final threshold = item.growthThreshold;
+    if (threshold == null) {
+      return false;
+    }
+
+    // 포인트를 소비하지 않고 누적 건강활동 포인트로 아이템을 해금한다.
+    return (_account?.totalEarned ?? 0) >= threshold;
   }
 
   void _preview(_StudioItem item) {
@@ -472,104 +458,13 @@ class _BomiStudioScreenState extends State<BomiStudioScreen> {
     });
   }
 
-  Future<void> _purchase(_StudioItem item) async {
-    final reward = _availableRewardFor(item);
-    final account = _account;
-
-    if (reward == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('이 아이템은 서버 배포가 완료된 뒤 구매할 수 있어요.')),
-      );
-      return;
-    }
-
-    if (account == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('포인트 정보를 확인할 수 없어요.')));
-      return;
-    }
-
-    if (account.balance < reward.requiredPoints) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('보유 포인트가 부족해요.')));
-      return;
-    }
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('아이템 구매'),
-          content: Text(
-            '${reward.rewardName}\n\n'
-            '${_points(reward.requiredPoints)}P를 사용해 구매할까요?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('취소'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('구매'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true || !mounted) return;
-
-    setState(() {
-      _redeemingRewardIds.add(reward.id);
-    });
-
-    try {
-      final result = await widget.repository.redeemReward(
-        rewardId: reward.id,
-        idempotencyKey:
-            'bomi-${reward.id}-${DateTime.now().microsecondsSinceEpoch}',
-      );
-
-      if (!mounted) return;
-
-      _preview(item);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            result.alreadyProcessed
-                ? '이미 보유하고 있는 아이템이에요.'
-                : '${reward.rewardName} 구매가 완료됐어요!',
-          ),
-        ),
-      );
-
-      await _reloadRewardData();
-    } catch (error) {
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(rewardErrorMessage(error))));
-    } finally {
-      if (mounted) {
-        setState(() {
-          _redeemingRewardIds.remove(reward.id);
-        });
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFFF9FB),
       appBar: AppBar(
         title: const Text(
-          '보미 스튜디오',
+          '보미 꾸미기',
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
         backgroundColor: const Color(0xFFFFF9FB),
@@ -779,10 +674,98 @@ class _BomiStudioScreenState extends State<BomiStudioScreen> {
   }
 
   Widget _buildStudioStage() {
+    final totalEarned = _account?.totalEarned ?? 0;
+
+    final allItems = <_StudioItem>[
+      ..._outfits,
+      ..._accessories,
+      ..._backgrounds,
+    ];
+
+    final upcomingItems =
+        allItems
+            .where(
+              (item) =>
+                  !item.isDefault &&
+                  item.growthThreshold != null &&
+                  item.growthThreshold! > totalEarned,
+            )
+            .toList()
+          ..sort((a, b) => a.growthThreshold!.compareTo(b.growthThreshold!));
+
+    final nextItem = upcomingItems.isEmpty ? null : upcomingItems.first;
+
+    final nextThreshold = nextItem?.growthThreshold;
+    final remainingPoints = nextThreshold == null
+        ? 0
+        : (nextThreshold - totalEarned).clamp(0, nextThreshold);
+
+    final nextProgress = nextThreshold == null || nextThreshold == 0
+        ? 1.0
+        : (totalEarned / nextThreshold).clamp(0.0, 1.0).toDouble();
+
+    String? selectedItemName;
+
+    for (final item in _currentItems) {
+      final selected =
+          item.painterFile == _currentSelection ||
+          (_category == _StudioCategory.accessory &&
+              item.painterFile == null &&
+              _currentSelection == null);
+
+      if (selected) {
+        selectedItemName = item.name;
+        break;
+      }
+    }
+
+    String speechText;
+
+    // 첫 진입과 선택한 아이템에 따라 보미가 직접 반응한다.
+    if (totalEarned == 0 && selectedItemName == '기본 홈웨어') {
+      speechText = '오늘도 만나서 반가워요! 같이 꾸며볼까요? 💗';
+    } else if (selectedItemName == '핑크 운동복') {
+      speechText = '핑크 운동복 어때요? 산뜻하죠? 💕';
+    } else if (selectedItemName == '토끼 후드티') {
+      speechText = '토끼 후드라니! 오늘 더 귀여워졌어요 🐰';
+    } else if (selectedItemName == '노란 레인코트') {
+      speechText = '노란 레인코트 입고 같이 산책하고 싶어요 ☔';
+    } else if (selectedItemName == '하트 리본') {
+      speechText = '하트 리본이 정말 마음에 들어요! 🎀';
+    } else if (selectedItemName == '새싹 모자') {
+      speechText = '새싹이 쏙! 보미가 한 뼘 더 자란 것 같아요 🌱';
+    } else if (selectedItemName == '하트 선글라스') {
+      speechText = '짜잔! 오늘 보미 조금 멋져 보이나요? 😎';
+    } else if (selectedItemName == '호숫가 공원') {
+      speechText = '공원 바람이 좋아요. 같이 걸어볼까요? 🌿';
+    } else if (selectedItemName == '두근 비치') {
+      speechText = '바다다! 오늘은 여기서 쉬어가요 🏖️';
+    } else if (nextItem != null &&
+        remainingPoints > 0 &&
+        remainingPoints <= 20 &&
+        totalEarned > 0) {
+      speechText = '조금만 더 하면 ${nextItem.name}도 만날 수 있어요 ✨';
+    } else {
+      switch (_category) {
+        case _StudioCategory.outfit:
+          speechText = '오늘은 어떤 옷을 입어볼까요?';
+
+        case _StudioCategory.accessory:
+          speechText = '보미에게 어울리는 소품을 골라주세요!';
+
+        case _StudioCategory.background:
+          speechText = '오늘은 어디에서 함께할까요?';
+      }
+    }
+
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: Colors.white,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFFFFAFC), Color(0xFFF8F5FF), Color(0xFFF4FAFF)],
+        ),
         borderRadius: BorderRadius.circular(28),
         border: Border.all(color: const Color(0xFFFFDDE7)),
         boxShadow: const [
@@ -795,43 +778,250 @@ class _BomiStudioScreenState extends State<BomiStudioScreen> {
       ),
       child: Column(
         children: [
-          AspectRatio(
-            aspectRatio: 1,
-            child: CustomPaint(
-              painter: BomiFittedPainter(
-                images: _images!,
-                manifest: _manifest!,
-                outfit: _outfit,
-                accessory: _accessory,
-                background: _background,
-              ),
-              child: const SizedBox.expand(),
-            ),
-          ),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 11, 16, 13),
-            color: Colors.white,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
             child: Row(
               children: [
-                const Icon(
-                  Icons.auto_awesome_rounded,
-                  size: 17,
-                  color: Color(0xFFFF789D),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.favorite_rounded,
+                        size: 13,
+                        color: Color(0xFFFF6E9C),
+                      ),
+                      SizedBox(width: 5),
+                      Text(
+                        '오늘의 보미',
+                        style: TextStyle(
+                          color: AppColors.navy,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(width: 7),
-                Expanded(
-                  child: Text(
-                    '${_level.title}와 함께 오늘도 건강한 하루를 만들어봐요.',
-                    style: const TextStyle(
-                      color: AppColors.navy,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF0D8),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Text(
+                    '🎁 스타터 선물 2개',
+                    style: TextStyle(
+                      color: Color(0xFF8A6530),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
                     ),
                   ),
                 ),
               ],
             ),
+          ),
+
+          // 보미와 말풍선을 같은 화면 안에 배치한다.
+          AspectRatio(
+            aspectRatio: 1,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: BomiFittedPainter(
+                      images: _images!,
+                      manifest: _manifest!,
+                      outfit: _outfit,
+                      accessory: _accessory,
+                      background: _background,
+                    ),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+
+                const Positioned(
+                  left: 18,
+                  bottom: 54,
+                  child: Icon(
+                    Icons.favorite_rounded,
+                    size: 17,
+                    color: Color(0x55FF87AA),
+                  ),
+                ),
+
+                const Positioned(
+                  right: 24,
+                  bottom: 80,
+                  child: Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 20,
+                    color: Color(0x669783D5),
+                  ),
+                ),
+
+                Positioned(
+                  top: 28,
+                  right: 12,
+                  width: 190,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: ScaleTransition(
+                          scale: Tween<double>(
+                            begin: 0.96,
+                            end: 1,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: Column(
+                      key: ValueKey(speechText),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(13, 10, 13, 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.96),
+                            borderRadius: BorderRadius.circular(17),
+                            border: Border.all(color: const Color(0xFFFFD9E5)),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x12000000),
+                                blurRadius: 10,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            speechText,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: AppColors.navy,
+                              fontSize: 11.5,
+                              height: 1.4,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        Transform.translate(
+                          offset: const Offset(27, -2),
+                          child: Transform.rotate(
+                            angle: 0.78,
+                            child: Container(
+                              width: 13,
+                              height: 13,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                border: Border(
+                                  right: BorderSide(color: Color(0xFFFFD9E5)),
+                                  bottom: BorderSide(color: Color(0xFFFFD9E5)),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.fromLTRB(14, 8, 14, 14),
+            padding: const EdgeInsets.all(13),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.94),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFEFE7F5)),
+            ),
+            child: nextItem == null
+                ? const Row(
+                    children: [
+                      Icon(
+                        Icons.celebration_rounded,
+                        size: 18,
+                        color: Color(0xFFFF7EA7),
+                      ),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '현재 준비된 꾸미기 보상을 모두 만났어요!',
+                          style: TextStyle(
+                            color: AppColors.navy,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.card_giftcard_rounded,
+                            size: 17,
+                            color: Color(0xFF8B72C9),
+                          ),
+                          const SizedBox(width: 7),
+                          Expanded(
+                            child: Text(
+                              '다음 선물 · ${nextItem.name}',
+                              style: const TextStyle(
+                                color: AppColors.navy,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '${_points(totalEarned)} / '
+                            '${_points(nextThreshold!)}P',
+                            style: const TextStyle(
+                              color: Color(0xFF7158A8),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: LinearProgressIndicator(
+                          value: nextProgress,
+                          minHeight: 7,
+                          backgroundColor: const Color(0xFFF1ECF8),
+                          valueColor: const AlwaysStoppedAnimation(
+                            Color(0xFFA38AD7),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ],
       ),
@@ -889,11 +1079,10 @@ class _BomiStudioScreenState extends State<BomiStudioScreen> {
         crossAxisCount: 2,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
-        childAspectRatio: textScale >= 1.45 ? 0.70 : 0.80,
+        childAspectRatio: textScale >= 1.45 ? 0.78 : 0.92,
       ),
       itemBuilder: (context, index) {
         final item = items[index];
-        final availableReward = _availableRewardFor(item);
         final owned = _isOwned(item);
 
         final selected =
@@ -906,17 +1095,7 @@ class _BomiStudioScreenState extends State<BomiStudioScreen> {
           item: item,
           selected: selected,
           owned: owned,
-          catalogAvailable: item.isDefault || availableReward != null || owned,
-          price: _displayPrice(item),
-          purchasing:
-              availableReward != null &&
-              _redeemingRewardIds.contains(availableReward.id),
-          onTap: () {
-            _selectItem(item);
-          },
-          onPurchase: owned || item.isDefault || item.growthThreshold != null
-              ? null
-              : () => _purchase(item),
+          onTap: () => _selectItem(item),
         );
       },
     );
@@ -936,10 +1115,9 @@ class _BomiStudioScreenState extends State<BomiStudioScreen> {
           SizedBox(width: 9),
           Expanded(
             child: Text(
-              '구매 아이템은 구매 전 미리보기로 확인할 수 있어요. '
-              '성장 보상은 누적 포인트를 달성하면 무료로 자동 지급돼요. '
-              '보유 아이템을 선택하면 장착 상태가 저장되어 다음에 '
-              '스튜디오를 열 때 그대로 복원됩니다.',
+              '모든 꾸미기 아이템은 건강 활동으로 누적 포인트를 달성하면 자동으로 해금돼요. '
+              '누적 포인트는 소모되지 않고 보미 성장과 아이템 해금 기준으로 사용돼요. '
+              '해금된 아이템을 선택하면 장착 상태가 저장되어 다음에도 그대로 유지됩니다.',
               style: TextStyle(
                 color: AppColors.mutedText,
                 height: 1.45,
@@ -959,7 +1137,6 @@ enum _StudioCategory { outfit, accessory, background }
 class _StudioItem {
   const _StudioItem({
     required this.name,
-    required this.price,
     this.previewFile,
     this.painterFile,
     this.rewardCode,
@@ -968,7 +1145,6 @@ class _StudioItem {
   });
 
   final String name;
-  final int price;
   final String? previewFile;
   final String? painterFile;
   final String? rewardCode;
@@ -1039,24 +1215,18 @@ class _StudioItemCard extends StatelessWidget {
     required this.item,
     required this.selected,
     required this.owned,
-    required this.catalogAvailable,
-    required this.price,
-    required this.purchasing,
     required this.onTap,
-    this.onPurchase,
   });
 
   final _StudioItem item;
   final bool selected;
   final bool owned;
-  final bool catalogAvailable;
-  final int price;
-  final bool purchasing;
   final VoidCallback onTap;
-  final VoidCallback? onPurchase;
 
   @override
   Widget build(BuildContext context) {
+    final starterGift = !item.isDefault && item.growthThreshold == 0;
+
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(20),
@@ -1068,8 +1238,8 @@ class _StudioItemCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              width: selected ? 2 : 1,
-              color: selected
+              width: selected && owned ? 2 : 1,
+              color: selected && owned
                   ? const Color(0xFFFF84A8)
                   : const Color(0xFFE9EBF0),
             ),
@@ -1084,19 +1254,88 @@ class _StudioItemCard extends StatelessWidget {
                     color: const Color(0xFFFFF7FA),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: item.previewFile == null
-                      ? const Center(
-                          child: Icon(
-                            Icons.block_rounded,
-                            size: 34,
-                            color: Color(0xFFB9BBC5),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      Opacity(
+                        opacity: owned ? 1 : 0.45,
+                        child: item.previewFile == null
+                            ? const Center(
+                                child: Icon(
+                                  Icons.block_rounded,
+                                  size: 34,
+                                  color: Color(0xFFB9BBC5),
+                                ),
+                              )
+                            : Image.asset(
+                                'assets/images/bomi/studio/'
+                                '${item.previewFile}',
+                                fit: BoxFit.contain,
+                              ),
+                      ),
+                      if (starterGift)
+                        Positioned(
+                          left: 7,
+                          top: 7,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 7,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF0CF),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Text(
+                              '🎁 선물',
+                              style: TextStyle(
+                                color: Color(0xFF8A6530),
+                                fontSize: 8,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
                           ),
-                        )
-                      : Image.asset(
-                          'assets/images/bomi/studio/'
-                          '${item.previewFile}',
-                          fit: BoxFit.contain,
                         ),
+                      if (!owned)
+                        const Positioned(
+                          right: 8,
+                          top: 8,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Padding(
+                              padding: EdgeInsets.all(5),
+                              child: Icon(
+                                Icons.lock_rounded,
+                                size: 14,
+                                color: Color(0xFF8B7DA8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      if (selected && owned)
+                        const Positioned(
+                          right: 7,
+                          bottom: 7,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: Color(0xFFFF84A8),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Padding(
+                              padding: EdgeInsets.all(5),
+                              child: Icon(
+                                Icons.check_rounded,
+                                size: 13,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -1111,78 +1350,16 @@ class _StudioItemCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 5),
-              if (item.isDefault)
+              if (selected && owned)
+                _statusRow(label: '장착 중', color: const Color(0xFFE95F8A))
+              else if (item.isDefault)
                 _statusRow(label: '기본 지급', color: const Color(0xFF4D9A72))
+              else if (starterGift)
+                _statusRow(label: '스타터 선물', color: const Color(0xFFB7792D))
               else if (owned)
-                _statusRow(
-                  label: selected ? '보유 · 미리보기 중' : '보유 중',
-                  color: const Color(0xFF4D9A72),
-                )
-              else if (item.growthThreshold != null)
-                _growthRewardStatus(item)
-              else ...[
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '${_points(price)} P',
-                        style: const TextStyle(
-                          color: Color(0xFFE85F88),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                    if (!catalogAvailable)
-                      const Text(
-                        '배포 대기',
-                        style: TextStyle(
-                          color: AppColors.mutedText,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                SizedBox(
-                  height: 32,
-                  child: FilledButton(
-                    onPressed: !catalogAvailable || purchasing
-                        ? null
-                        : onPurchase,
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      textStyle: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                    child: purchasing
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(catalogAvailable ? '구매하기' : '준비 중'),
-                  ),
-                ),
-              ],
-              if (selected &&
-                  !owned &&
-                  !item.isDefault &&
-                  item.growthThreshold == null) ...[
-                const SizedBox(height: 5),
-                const Text(
-                  '미리보기 중',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Color(0xFFE95F8A),
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
+                _statusRow(label: '해금 완료', color: const Color(0xFF4D9A72))
+              else
+                _unlockStatus(item),
             ],
           ),
         ),
@@ -1190,40 +1367,44 @@ class _StudioItemCard extends StatelessWidget {
     );
   }
 
-  Widget _growthRewardStatus(_StudioItem item) {
+  Widget _unlockStatus(_StudioItem item) {
+    final threshold = item.growthThreshold;
+
+    if (threshold == null) {
+      return const Text(
+        '아직 준비 중이에요',
+        style: TextStyle(
+          color: Color(0xFF8B7DA8),
+          fontSize: 9,
+          fontWeight: FontWeight.w800,
+        ),
+      );
+    }
+
+    final longTermReward = threshold >= 200;
+
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF0EBFF),
-            borderRadius: BorderRadius.circular(999),
-          ),
-          child: const Text(
-            '성장 보상',
-            style: TextStyle(
-              color: Color(0xFF7158A8),
-              fontSize: 8,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
+        Icon(
+          longTermReward
+              ? Icons.workspace_premium_rounded
+              : Icons.card_giftcard_rounded,
+          size: 12,
+          color: const Color(0xFF7158A8),
         ),
-        const SizedBox(width: 5),
-        const Icon(
-          Icons.lock_outline_rounded,
-          size: 14,
-          color: Color(0xFF7864AA),
-        ),
-        const SizedBox(width: 3),
+        const SizedBox(width: 4),
         Expanded(
           child: Text(
-            '${_points(item.growthThreshold!)}P 달성 시 무료',
-            maxLines: 1,
+            longTermReward
+                ? '성장 보상 · ${_points(threshold)}P'
+                : '${_points(threshold)}P에 자동 선물',
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              color: Color(0xFF7864AA),
+              color: Color(0xFF7158A8),
               fontSize: 9,
+              height: 1.25,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -1235,22 +1416,28 @@ class _StudioItemCard extends StatelessWidget {
   Widget _statusRow({required String label, required Color color}) {
     return Row(
       children: [
+        Icon(
+          label == '장착 중'
+              ? Icons.check_circle_rounded
+              : label == '스타터 선물'
+              ? Icons.card_giftcard_rounded
+              : Icons.auto_awesome_rounded,
+          size: 12,
+          color: color,
+        ),
+        const SizedBox(width: 4),
         Expanded(
           child: Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: color,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
+              fontSize: 9,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ),
-        if (selected)
-          const Icon(
-            Icons.check_circle_rounded,
-            size: 18,
-            color: Color(0xFFE95F8A),
-          ),
       ],
     );
   }

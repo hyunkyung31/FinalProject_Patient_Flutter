@@ -19,6 +19,7 @@ class HealthManagementScreen extends StatefulWidget {
     this.checkInScreenBuilder,
     this.conceptSection,
     this.rewardRepository,
+    this.onOpenBomiStudio,
     this.embedded = false,
   });
 
@@ -26,6 +27,7 @@ class HealthManagementScreen extends StatefulWidget {
   final WidgetBuilder? checkInScreenBuilder;
   final Widget? conceptSection;
   final RewardRepository? rewardRepository;
+  final VoidCallback? onOpenBomiStudio;
   final bool embedded;
 
   @override
@@ -389,7 +391,9 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
                 onWalk: _openWalk,
                 onQuiz: _openQuiz,
                 onBingo: _openBingo,
-                onStudio: () => _showActivityPreparing('보미 스튜디오'),
+                onStudio:
+                    widget.onOpenBomiStudio ??
+                    () => _showActivityPreparing('보미 꾸미기'),
               ),
               const SizedBox(height: 24),
             ],
@@ -444,70 +448,96 @@ class _RewardEntryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.fromLTRB(16, 15, 14, 15),
           decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFF5F9FF), Color(0xFFFFFBFD)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE7EBF1)),
+            border: Border.all(color: const Color(0xFFE2EAF5)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x08183B70),
+                blurRadius: 12,
+                offset: Offset(0, 4),
+              ),
+            ],
           ),
           child: Row(
             children: [
-              _RewardEntryIcon(),
-              SizedBox(width: 14),
+              SizedBox(
+                width: 62,
+                height: 62,
+                child: Image.asset(
+                  'assets/images/bomi/bomi_reward_icon.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      '두근 리워드',
-                      style: TextStyle(
-                        color: AppColors.navy,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    Row(
+                      children: [
+                        const Text(
+                          '두근 리워드',
+                          style: TextStyle(
+                            color: AppColors.navy,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFEDF3),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            balance == null ? '건강 활동 보상' : '${balance}P',
+                            style: const TextStyle(
+                              color: Color(0xFFF34F7D),
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    SizedBox(height: 5),
-                    Text(
-                      balance == null
-                          ? '포인트와 리워드를 확인해요.'
-                          : '보유 ${balance}P · 포인트와 리워드를 확인해요.',
-                      style: const TextStyle(
+                    const SizedBox(height: 6),
+                    const Text(
+                      '건강 활동을 이어가며 보미 아이템을 해금해요.',
+                      style: TextStyle(
                         color: AppColors.mutedText,
-                        fontSize: 13,
+                        fontSize: 12,
                         height: 1.4,
                       ),
                     ),
                   ],
                 ),
               ),
-              SizedBox(width: 10),
-              Icon(Icons.chevron_right_rounded, color: AppColors.mutedText),
+              const SizedBox(width: 6),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: Color(0xFF8090A8),
+                size: 22,
+              ),
             ],
           ),
         ),
       ),
-    );
-  }
-}
-
-class _RewardEntryIcon extends StatelessWidget {
-  const _RewardEntryIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 50,
-      height: 50,
-      decoration: BoxDecoration(
-        color: Color(0xFFF1F6FD),
-        borderRadius: BorderRadius.all(Radius.circular(16)),
-      ),
-      child: Icon(Icons.card_giftcard_rounded, color: AppColors.navy),
     );
   }
 }
@@ -520,18 +550,52 @@ class _TodayCheckInCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(18, 17, 12, 16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFFFFEEF4), Color(0xFFFFF8FB)],
+          colors: [Color(0xFFF4F8FF), Color(0xFFFFFBFD)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFFFD6E3)),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE1EAF8)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A183B70),
+            blurRadius: 14,
+            offset: Offset(0, 5),
+          ),
+        ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
+          Positioned(
+            right: -20,
+            top: -30,
+            child: Container(
+              width: 88,
+              height: 88,
+              decoration: const BoxDecoration(
+                color: Color(0x55E7F0FF),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
+          Positioned(
+            right: 54,
+            bottom: -18,
+            child: Container(
+              width: 28,
+              height: 28,
+              decoration: const BoxDecoration(
+                color: Color(0x40FFDDE8),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Expanded(
                 child: Column(
@@ -541,28 +605,77 @@ class _TodayCheckInCard extends StatelessWidget {
                       '오늘의 두근 체크인',
                       style: TextStyle(
                         color: AppColors.navy,
-                        fontSize: 20,
+                        fontSize: 19,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                     const Text(
-                      '지금, 보미와 함께 나의 하루를 돌아봐요.',
+                      '오늘의 몸과 마음을 가볍게 확인해요.',
                       style: TextStyle(
                         color: AppColors.mutedText,
-                        fontSize: 13,
-                        height: 1.45,
+                        fontSize: 12.5,
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.schedule_rounded,
+                          size: 14,
+                          color: Color(0xFF6D7E99),
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          '약 1분이면 충분해요',
+                          style: TextStyle(
+                            color: Color(0xFF6D7E99),
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: onTap,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFF75283),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(160, 36),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 22,
+                          vertical: 7,
+                        ),
+                        shape: const StadiumBorder(),
+                        elevation: 0,
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '체크인 시작',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          SizedBox(width: 6),
+                          Icon(Icons.arrow_forward_rounded, size: 17),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 4),
               SizedBox(
-                width: 98,
-                height: 100,
-                child: Transform.scale(
-                  scale: 1.2,
+                width: 132,
+                height: 138,
+                child: Align(
+                  alignment: Alignment.bottomCenter,
                   child: Image.asset(
                     'assets/images/bomi/bomi_health_checkin.png',
                     fit: BoxFit.contain,
@@ -570,23 +683,6 @@ class _TodayCheckInCard extends StatelessWidget {
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: onTap,
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFF75283),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-              label: const Text(
-                '체크인 시작',
-                style: TextStyle(fontWeight: FontWeight.w800),
-              ),
-            ),
           ),
         ],
       ),
@@ -854,20 +950,28 @@ class _BomiEncouragementCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF3F7),
-        borderRadius: BorderRadius.circular(20),
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFF3F7), Color(0xFFF7FAFF)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFFFE0EA)),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: Colors.white,
-            child: Icon(Icons.favorite_rounded, color: Color(0xFFF75283)),
+          SizedBox(
+            width: 48,
+            height: 48,
+            child: Image.asset(
+              'assets/images/bomi/bomi_health_wave.png',
+              fit: BoxFit.contain,
+            ),
           ),
-          SizedBox(width: 14),
-          Expanded(
+          const SizedBox(width: 10),
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -875,16 +979,19 @@ class _BomiEncouragementCard extends StatelessWidget {
                   '보미가 응원해요!',
                   style: TextStyle(
                     color: AppColors.navy,
+                    fontSize: 13,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                SizedBox(height: 4),
+                SizedBox(height: 3),
                 Text(
-                  '완벽함보다 꾸준함이 더 중요해요. 오늘도 작은 실천 하나부터 시작해 보세요.',
+                  '오늘도 작은 실천 하나면 충분해요.',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: AppColors.mutedText,
-                    fontSize: 12,
-                    height: 1.45,
+                    fontSize: 11,
+                    height: 1.35,
                   ),
                 ),
               ],
@@ -916,19 +1023,70 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 32),
-      child: Column(
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFFE0E9)),
+      ),
+      child: Row(
         children: [
-          const Icon(
-            Icons.error_outline_rounded,
-            size: 42,
-            color: AppColors.mutedText,
+          Container(
+            width: 36,
+            height: 36,
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFEEF3),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.info_outline_rounded,
+              color: Color(0xFFF75283),
+              size: 20,
+            ),
           ),
-          const SizedBox(height: 12),
-          Text(message, textAlign: TextAlign.center),
-          const SizedBox(height: 14),
-          OutlinedButton(onPressed: onRetry, child: const Text('다시 시도')),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '건강 미션을 불러오지 못했어요',
+                  style: TextStyle(
+                    color: AppColors.navy,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  message,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.mutedText,
+                    fontSize: 11,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton(
+            onPressed: onRetry,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.navy,
+              minimumSize: const Size(0, 34),
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              side: const BorderSide(color: Color(0xFFD9E2EF)),
+              shape: const StadiumBorder(),
+            ),
+            child: const Text(
+              '다시 시도',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+            ),
+          ),
         ],
       ),
     );

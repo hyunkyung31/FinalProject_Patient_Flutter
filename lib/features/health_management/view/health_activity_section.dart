@@ -34,48 +34,46 @@ class HealthActivitySection extends StatelessWidget {
           '\uc624\ub298 \ub098\uc5d0\uac8c \ub9de\ub294 \uc791\uc740 \uac74\uac15 \uc2b5\uad00\uc744 \uc2e4\ucc9c\ud574 \ubcf4\uc138\uc694.',
           style: TextStyle(color: AppColors.mutedText, fontSize: 13),
         ),
-        const SizedBox(height: 13),
+        const SizedBox(height: 8),
         GridView.count(
+          padding: EdgeInsets.zero,
           crossAxisCount: 2,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
-          childAspectRatio: 1.46,
+          childAspectRatio: 1.40,
           children: [
             _HealthActivityCard(
               title: '\ub9ac\ub4ec\uc0b0\ucc45',
               subtitle:
-                  '\uc624\ub298\uc758 \uac78\uc74c\uc744 \ud655\uc778\ud574\uc694',
-              backgroundColor: const Color(0xFFEDF5FF),
+                  '\uc624\ub298 \uac78\uc74c\uc744 \uac00\ubccd\uac8c \ud655\uc778\ud574\uc694',
+              backgroundColor: const Color(0xFFE8F3FF),
               imagePath: 'assets/images/bomi/bomi_walk.png',
               onTap: onWalk,
             ),
             _HealthActivityCard(
               title: '1\ubd84 \uac74\uac15\ud034\uc988',
               subtitle:
-                  '\ud558\ub8e8 \ud55c \uac00\uc9c0 \uac74\uac15 \uc0c1\uc2dd',
-              backgroundColor: const Color(0xFFFFF3F7),
-              icon: Icons.lightbulb_rounded,
-              iconColor: const Color(0xFFFFB02E),
+                  '1\ubd84\uc73c\ub85c \uac74\uac15 \uc0c1\uc2dd\uc744 \ucc44\uc6cc\uc694',
+              backgroundColor: const Color(0xFFFFF3DE),
+              imagePath: 'assets/images/bomi/bomi_quiz_thinking.png',
               onTap: onQuiz,
             ),
             _HealthActivityCard(
               title: '\ub450\uadfc\ube59\uace0',
               subtitle:
                   '\uc791\uc740 \uc2e4\ucc9c\uc73c\ub85c \uce78\uc744 \ucc44\uc6cc\uc694',
-              backgroundColor: const Color(0xFFFFF3F7),
-              icon: Icons.grid_view_rounded,
-              iconColor: const Color(0xFFF75283),
+              backgroundColor: const Color(0xFFFFEAF1),
+              imagePath: 'assets/images/bomi/bomi_health_celebrate.png',
               onTap: onBingo,
             ),
             _HealthActivityCard(
-              title: '\ubcf4\ubbf8 \uc2a4\ud29c\ub514\uc624',
+              title: '\ubcf4\ubbf8 \uafb8\ubbf8\uae30',
               subtitle:
-                  '\ubcf4\uc0c1\uc73c\ub85c \ubc1b\uc740 \uc544\uc774\ud15c\uc744 \uafb8\uba70\uc694',
-              backgroundColor: const Color(0xFFEDF5FF),
-              icon: Icons.auto_awesome_rounded,
-              iconColor: const Color(0xFF4E7DE9),
+                  '\ud574\uae08\ud55c \uc544\uc774\ud15c\uc73c\ub85c \uafb8\uba70\uc694',
+              backgroundColor: const Color(0xFFEFEEFF),
+              imagePath: 'assets/images/bomi/bomi_health_wave.png',
               onTap: onStudio,
             ),
           ],
@@ -91,63 +89,94 @@ class _HealthActivityCard extends StatelessWidget {
     required this.subtitle,
     required this.backgroundColor,
     required this.onTap,
-    this.imagePath,
-    this.icon,
-    this.iconColor,
+    required this.imagePath,
   });
 
   final String title;
   final String subtitle;
   final Color backgroundColor;
   final VoidCallback onTap;
-  final String? imagePath;
-  final IconData? icon;
-  final Color? iconColor;
+  final String imagePath;
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: backgroundColor,
-      borderRadius: BorderRadius.circular(22),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: Color(0xFFE5EBF3)),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(18),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 13, 10, 11),
+          padding: const EdgeInsets.fromLTRB(13, 13, 9, 10),
           child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              Align(
-                alignment: Alignment.bottomRight,
-                child: imagePath != null
-                    ? SizedBox(
-                        width: 76,
-                        height: 82,
-                        child: Image.asset(imagePath!, fit: BoxFit.contain),
-                      )
-                    : Icon(icon, color: iconColor, size: 44),
+              Positioned(
+                right: -15,
+                top: -17,
+                child: Container(
+                  width: 64,
+                  height: 64,
+                  decoration: const BoxDecoration(
+                    color: Color(0x4DFFFFFF),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 40,
+                bottom: -4,
+                child: Container(
+                  width: 16,
+                  height: 16,
+                  decoration: const BoxDecoration(
+                    color: Color(0x45FFFFFF),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+              Positioned(
+                right: -3,
+                bottom: -7,
+                child: SizedBox(
+                  width: 84,
+                  height: 88,
+                  child: Transform.scale(
+                    scale: 1.08,
+                    child: Image.asset(imagePath, fit: BoxFit.contain),
+                  ),
+                ),
               ),
               Align(
                 alignment: Alignment.topLeft,
                 child: SizedBox(
-                  width: 108,
+                  width: 92,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: AppColors.navy,
-                          fontSize: 15,
+                          fontSize: 14.5,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 4),
                       Text(
                         subtitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: AppColors.mutedText,
-                          fontSize: 11,
-                          height: 1.3,
+                          fontSize: 10.5,
+                          height: 1.35,
                         ),
                       ),
                     ],
