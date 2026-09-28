@@ -151,10 +151,10 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, '로그아웃'));
     await tester.pumpAndSettle();
     expect(repository.cleared, isTrue);
-    expect(find.text('카카오 로그인/회원가입'), findsOneWidget);
+    expect(find.text('???? ????'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     await open(tester);
-    expect(find.text('카카오 로그인/회원가입'), findsOneWidget);
+    expect(find.text('???? ????'), findsOneWidget);
   });
 
   testWidgets('로그아웃 실패의 재시도는 세션 복원이 아닌 로그아웃을 호출한다', (tester) async {
@@ -165,19 +165,19 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, '로그아웃'));
     await tester.pumpAndSettle();
     expect(repository.cleared, isFalse);
-    expect(find.text('카카오 로그인/회원가입'), findsNothing);
+    expect(find.text('???? ????'), findsNothing);
     repository.logoutFails = false;
     await tester.tap(find.text('다시 시도'));
     await tester.pumpAndSettle();
     expect(repository.logouts, 2);
     expect(repository.restores, 1);
-    expect(find.text('카카오 로그인/회원가입'), findsOneWidget);
+    expect(find.text('???? ????'), findsOneWidget);
   });
 
   testWidgets('저장된 세션이 없으면 로그인 화면으로 이동한다', (tester) async {
     repository.restored = false;
     await open(tester);
-    expect(find.text('카카오 로그인/회원가입'), findsOneWidget);
+    expect(find.text('???? ????'), findsOneWidget);
     expect(repository.checks, 0);
   });
 
@@ -234,7 +234,7 @@ void main() {
     );
     await open(tester);
     expect(repository.cleared, isTrue);
-    expect(find.text('카카오 로그인/회원가입'), findsOneWidget);
+    expect(find.text('???? ????'), findsOneWidget);
   });
   testWidgets('생체 로그인 활성 세션은 인증 성공 뒤에만 홈으로 이동한다', (tester) async {
     repository.biometricRequired = true;

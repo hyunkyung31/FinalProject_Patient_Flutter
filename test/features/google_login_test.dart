@@ -33,10 +33,13 @@ class GoogleMemoryStorage extends TokenStorage {
 
 void main() {
   test('SDK 진단은 상세 원인을 남기고 이메일과 토큰을 가린다', () {
-    final message = googleLoginDiagnostic(const GoogleSignInException(
-      code: GoogleSignInExceptionCode.unknownError,
-      description: 'Reauthentication failed user@example.com Bearer secret-token',
-    ));
+    final message = googleLoginDiagnostic(
+      const GoogleSignInException(
+        code: GoogleSignInExceptionCode.unknownError,
+        description:
+            'Reauthentication failed user@example.com Bearer secret-token',
+      ),
+    );
     expect(message, contains('Reauthentication failed'));
     expect(message, isNot(contains('user@example.com')));
     expect(message, isNot(contains('secret-token')));
@@ -106,7 +109,7 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.text('구글 로그인/회원가입'));
+    await tester.tap(find.text('Google\uB85C \uACC4\uC18D\uD558\uAE30'));
     await tester.pumpAndSettle();
     expect(completed, isTrue);
     expect(storage.access, 'server-access');
@@ -124,7 +127,7 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.text('구글 로그인/회원가입'));
+    await tester.tap(find.text('Google\uB85C \uACC4\uC18D\uD558\uAE30'));
     await tester.pumpAndSettle();
     expect(find.text('구글 로그인을 취소했어요.'), findsOneWidget);
     expect(adapter.request, isNull);
