@@ -47,12 +47,9 @@ class _PatientCctaImageState extends State<PatientCctaImage> {
       }
     }
 
-    final images = await Future.wait<Uint8List?>([
-      loadImage('preview'),
-      loadImage('overlay'),
-    ]);
+    final overlay = await loadImage('overlay');
 
-    return _CctaImages(preview: images[0], overlay: images[1]);
+    return _CctaImages(overlay: overlay);
   }
 
   @override
@@ -69,8 +66,7 @@ class _PatientCctaImageState extends State<PatientCctaImage> {
 
         final images = snapshot.data;
 
-        if (images == null ||
-            (images.preview == null && images.overlay == null)) {
+        if (images == null || images.overlay == null) {
           return Container(
             width: double.infinity,
             padding: const EdgeInsets.all(14),
@@ -93,17 +89,7 @@ class _PatientCctaImageState extends State<PatientCctaImage> {
           );
         }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (images.preview != null)
-              _CctaImageCard(title: '관상동맥 3D 미리보기', bytes: images.preview!),
-            if (images.preview != null && images.overlay != null)
-              const SizedBox(height: 12),
-            if (images.overlay != null)
-              _CctaImageCard(title: '석회화 위치 오버레이', bytes: images.overlay!),
-          ],
-        );
+        return _CctaImageCard(title: '석회화 의심 위치', bytes: images.overlay!);
       },
     );
   }
@@ -143,8 +129,7 @@ class _CctaImageCard extends StatelessWidget {
 }
 
 class _CctaImages {
-  const _CctaImages({this.preview, this.overlay});
+  const _CctaImages({this.overlay});
 
-  final Uint8List? preview;
   final Uint8List? overlay;
 }
