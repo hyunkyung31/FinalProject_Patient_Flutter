@@ -176,6 +176,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
           return HealthManagementScreen(
             repository: PatientHealthMissionRepository(repository.client),
             rewardRepository: PatientRewardRepository(repository.client),
+            onOpenBomiStudio: () {
+              Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  builder: (_) => BomiStudioScreen(
+                    repository: PatientRewardRepository(repository.client),
+                    equipmentRepository: PatientBomiStudioRepository(
+                      repository.client,
+                    ),
+                  ),
+                ),
+              );
+            },
             embedded: true,
           );
         }
@@ -418,6 +430,18 @@ class _DashboardHome extends StatelessWidget {
           builder: (_) => HealthManagementScreen(
             repository: PatientHealthMissionRepository(repository.client),
             rewardRepository: PatientRewardRepository(repository.client),
+            onOpenBomiStudio: () {
+              Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  builder: (_) => BomiStudioScreen(
+                    repository: PatientRewardRepository(repository.client),
+                    equipmentRepository: PatientBomiStudioRepository(
+                      repository.client,
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       );
