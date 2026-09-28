@@ -83,35 +83,10 @@ class _BomiStartupSplashState extends State<BomiStartupSplash>
               child: Column(
                 children: [
                   const Spacer(flex: 2),
-                  Container(
-                    width: 58,
-                    height: 58,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x100D3978),
-                          blurRadius: 24,
-                          offset: Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.monitor_heart_rounded,
-                      color: Color(0xFFF36F8C),
-                      size: 34,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'D U G N',
-                    style: TextStyle(
-                      color: Color(0xFF153D7A),
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 2.5,
-                    ),
+                  Image.asset(
+                    'assets/images/bomi/dugn_logo.png',
+                    width: 110,
+                    fit: BoxFit.contain,
                   ),
                   const Spacer(),
                   AnimatedBuilder(
