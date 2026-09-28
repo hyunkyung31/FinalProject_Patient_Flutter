@@ -240,6 +240,10 @@ class _HealthCheckInScreenState extends State<HealthCheckInScreen> {
 
       if (!mounted) return;
 
+      await _showCompletionCelebration(completion.awardedPoints);
+
+      if (!mounted) return;
+
       Navigator.of(context).pop<HealthCheckInResult>(
         HealthCheckInResult(
           alreadyCompleted: completion.alreadyCompleted,
@@ -255,6 +259,33 @@ class _HealthCheckInScreenState extends State<HealthCheckInScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text(healthMissionErrorMessage(error))));
     }
+  }
+
+  Future<void> _showCompletionCelebration(double? awardedPoints) async {
+    final dialogFuture = showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: '체크인 완료',
+      barrierColor: const Color(0x330D1B33),
+      transitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (_, _, _) {
+        return _CheckInCelebrationOverlay(awardedPoints: awardedPoints);
+      },
+      transitionBuilder: (_, animation, _, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: child,
+        );
+      },
+    );
+
+    // 컨페티와 보상 안내를 짧게 보여준 뒤 건강관리 홈으로 돌아간다.
+    await Future<void>.delayed(const Duration(milliseconds: 1800));
+
+    if (!mounted) return;
+
+    Navigator.of(context, rootNavigator: true).pop();
+    await dialogFuture;
   }
 
   String get _timerText {
@@ -532,6 +563,35 @@ class _BreathingStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final timerParts = timerText.split(':');
+    final minutes = timerParts.length == 2
+        ? int.tryParse(timerParts[0]) ?? 1
+        : 1;
+    final seconds = timerParts.length == 2
+        ? int.tryParse(timerParts[1]) ?? 0
+        : 0;
+
+    final remainingSeconds = (minutes * 60 + seconds).clamp(0, 60).toInt();
+    final elapsedSeconds = 60 - remainingSeconds;
+    final overallProgress = (elapsedSeconds / 60).clamp(0.0, 1.0);
+
+    String? endingCue;
+
+    if (running && remainingSeconds > 0) {
+      if (remainingSeconds <= 4) {
+        endingCue = '마지막 호흡이에요';
+      } else if (remainingSeconds <= 10) {
+        endingCue = '거의 다 왔어요';
+      } else if (remainingSeconds <= 15) {
+        endingCue = '조금만 더 함께해요';
+      }
+    }
+
+    final displayMessage =
+        running && remainingSeconds > 0 && remainingSeconds <= 4
+        ? '마지막 숨을 천천히 이어가며 마무리해요.'
+        : phaseMessage;
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
       children: [
@@ -554,9 +614,10 @@ class _BreathingStep extends StatelessWidget {
             fontWeight: FontWeight.w900,
           ),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 18),
+
         Container(
-          padding: const EdgeInsets.fromLTRB(18, 22, 18, 22),
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFFFFEFF4), Color(0xFFF4F8FF)],
@@ -565,117 +626,207 @@ class _BreathingStep extends StatelessWidget {
           ),
           child: Column(
             children: [
-              Text(
-                timerText,
-                style: const TextStyle(
-                  color: AppColors.navy,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w900,
+              // 전체 1분 흐름은 현재 4초 호흡 단계와 분리해서 보여준다.
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 13,
                 ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 224,
-                child: Stack(
-                  alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.76),
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                child: Row(
                   children: [
-                    // ???? ???? ???? ???? ?? ??? ?
-                    AnimatedScale(
-                      scale: ringScale,
-                      duration: const Duration(seconds: 4),
-                      curve: Curves.easeInOutCubic,
-                      child: Container(
-                        width: 178,
-                        height: 178,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: const Color(0x337EA6FF),
-                          border: Border.all(
-                            color: const Color(0x667EA6FF),
-                            width: 2,
-                          ),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Color(0x267EA6FF),
-                              blurRadius: 28,
-                              spreadRadius: 8,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    AnimatedScale(
-                      scale: ringScale,
-                      duration: const Duration(seconds: 4),
-                      curve: Curves.easeInOutCubic,
-                      child: Container(
-                        width: 136,
-                        height: 136,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: const Color(0x557EA6FF),
-                            width: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
                     SizedBox(
-                      width: 176,
-                      height: 176,
-                      child: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 450),
-                        child: Image.asset(
-                          assetPath,
-                          key: ValueKey(assetPath),
-                          fit: BoxFit.contain,
-                        ),
+                      width: 94,
+                      height: 94,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          SizedBox(
+                            width: 88,
+                            height: 88,
+                            child: CircularProgressIndicator(
+                              value: overallProgress,
+                              strokeWidth: 7,
+                              strokeCap: StrokeCap.round,
+                              backgroundColor: const Color(0xFFE3E9F5),
+                              color: const Color(0xFF4E7DE9),
+                            ),
+                          ),
+                          Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.schedule_rounded,
+                                size: 16,
+                                color: Color(0xFF6E7F9E),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                timerText,
+                                style: const TextStyle(
+                                  color: AppColors.navy,
+                                  fontSize: 25,
+                                  fontWeight: FontWeight.w900,
+                                  height: 1,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            completed ? '1분 호흡 완료' : '1분 호흡 진행',
+                            style: TextStyle(
+                              color: AppColors.navy,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            completed
+                                ? '1분 호흡을 모두 마쳤어요'
+                                : running
+                                ? '$remainingSeconds초 남았어요'
+                                : '천천히 1분 동안 함께해요',
+                            style: const TextStyle(
+                              color: AppColors.mutedText,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 9),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(99),
+                            child: LinearProgressIndicator(
+                              value: overallProgress,
+                              minHeight: 6,
+                              backgroundColor: const Color(0xFFE7ECF5),
+                              color: const Color(0xFF7EA6FF),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
+
+              const SizedBox(height: 12),
+
+              // 기존 외곽 동심원 대신 보미 자체가 호흡 리듬에 맞춰 움직인다.
+              SizedBox(
+                height: 205,
+                child: Center(
+                  child: AnimatedScale(
+                    scale: running ? ringScale : 1,
+                    duration: const Duration(seconds: 4),
+                    curve: Curves.easeInOutCubic,
+                    child: Transform.scale(
+                      scale: 1.30,
+                      child: SizedBox(
+                        width: 190,
+                        height: 190,
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 450),
+                          child: Image.asset(
+                            assetPath,
+                            key: ValueKey(assetPath),
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: endingCue == null
+                    ? const SizedBox(key: ValueKey('no-ending-cue'), height: 0)
+                    : Container(
+                        key: ValueKey(endingCue),
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 13,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFE5ED),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                        child: Text(
+                          endingCue,
+                          style: const TextStyle(
+                            color: Color(0xFFF75283),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+              ),
+
               Text(
                 phaseTitle,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                   color: AppColors.navy,
-                  fontSize: 20,
+                  fontSize: 21,
                   fontWeight: FontWeight.w900,
                 ),
               ),
+
               if (running) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   '$phaseSecondsLeft',
                   style: const TextStyle(
                     color: Color(0xFFF75283),
-                    fontSize: 34,
+                    fontSize: 36,
                     fontWeight: FontWeight.w900,
+                    height: 1.1,
                   ),
                 ),
               ],
+
               const SizedBox(height: 8),
-              Text(
-                phaseMessage,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: AppColors.mutedText,
-                  fontSize: 13,
-                  height: 1.5,
+
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: Text(
+                  displayMessage,
+                  key: ValueKey(displayMessage),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: AppColors.mutedText,
+                    fontSize: 13,
+                    height: 1.5,
+                  ),
                 ),
               ),
-              const SizedBox(height: 22),
+
+              const SizedBox(height: 20),
+
               if (!running && !completed)
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
                     onPressed: onStart,
                     icon: const Icon(Icons.play_arrow_rounded),
-                    label: const Text('시작하기'),
+                    label: const Text('1분 시작하기'),
                   ),
                 ),
+
               if (completed)
                 SizedBox(
                   width: double.infinity,
@@ -688,6 +839,313 @@ class _BreathingStep extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _CheckInCelebrationOverlay extends StatelessWidget {
+  const _CheckInCelebrationOverlay({required this.awardedPoints});
+
+  final double? awardedPoints;
+
+  String? get _rewardText {
+    final points = awardedPoints;
+
+    if (points == null || points <= 0) return null;
+
+    final value = points == points.roundToDouble()
+        ? points.toInt().toString()
+        : points.toStringAsFixed(1);
+
+    return '+${value}P 적립';
+  }
+
+  Widget _piece({
+    required double width,
+    required double height,
+    required double progress,
+    required double x,
+    required double fall,
+    required double sway,
+    required double rotation,
+    required Color color,
+  }) {
+    final fadeStart = ((progress - 0.76) / 0.24).clamp(0.0, 1.0).toDouble();
+
+    return Positioned(
+      left: width * x + progress * sway,
+      top: -20 + height * fall * progress,
+      child: Opacity(
+        opacity: 1 - fadeStart,
+        child: Transform.rotate(
+          angle: progress * rotation,
+          child: Container(
+            width: 8,
+            height: 14,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(3),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rewardText = _rewardText;
+
+    return PopScope(
+      canPop: false,
+      child: Material(
+        color: Colors.transparent,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween<double>(begin: 0, end: 1),
+          duration: const Duration(milliseconds: 1300),
+          curve: Curves.easeOut,
+          builder: (context, progress, child) {
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                final height = constraints.maxHeight;
+
+                // 처음에는 살짝 크게 튀고 부드럽게 원래 크기로 돌아온다.
+                final cardScale = progress < 0.5
+                    ? 0.80 + (progress / 0.5) * 0.32
+                    : 1.12 - ((progress - 0.5) / 0.5) * 0.12;
+
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Transform.scale(
+                        scale: cardScale,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 320),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.fromLTRB(24, 22, 24, 24),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(28),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x220D1B33),
+                                  blurRadius: 28,
+                                  offset: Offset(0, 12),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    SizedBox(
+                                      height: 116,
+                                      child: Image.asset(
+                                        'assets/images/bomi/bomi_breath_complete.png',
+                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
+                                    const Positioned(
+                                      top: 0,
+                                      right: -6,
+                                      child: Icon(
+                                        Icons.auto_awesome_rounded,
+                                        size: 21,
+                                        color: Color(0xFFFFC84A),
+                                      ),
+                                    ),
+                                    const Positioned(
+                                      bottom: 12,
+                                      left: -4,
+                                      child: Icon(
+                                        Icons.favorite_rounded,
+                                        size: 16,
+                                        color: Color(0xFFFFA6BE),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 5),
+                                const Text(
+                                  '오늘의 체크인 완료!',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: AppColors.navy,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(height: 7),
+                                const Text(
+                                  '오늘도 잘했어요 💗',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: AppColors.mutedText,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                if (rewardText != null) ...[
+                                  const SizedBox(height: 15),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 15,
+                                      vertical: 8,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFEAF1),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.card_giftcard_rounded,
+                                          size: 17,
+                                          color: Color(0xFFF75283),
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          rewardText,
+                                          style: const TextStyle(
+                                            color: Color(0xFFF75283),
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    _piece(
+                      width: width,
+                      height: height,
+                      progress: progress,
+                      x: 0.07,
+                      fall: 0.34,
+                      sway: 22,
+                      rotation: 5.2,
+                      color: const Color(0xFFF75283),
+                    ),
+                    _piece(
+                      width: width,
+                      height: height,
+                      progress: progress,
+                      x: 0.16,
+                      fall: 0.53,
+                      sway: -17,
+                      rotation: -5.0,
+                      color: const Color(0xFFFFC84A),
+                    ),
+                    _piece(
+                      width: width,
+                      height: height,
+                      progress: progress,
+                      x: 0.27,
+                      fall: 0.42,
+                      sway: 21,
+                      rotation: 6.0,
+                      color: const Color(0xFF82BFFF),
+                    ),
+                    _piece(
+                      width: width,
+                      height: height,
+                      progress: progress,
+                      x: 0.38,
+                      fall: 0.59,
+                      sway: -19,
+                      rotation: -5.7,
+                      color: const Color(0xFFF6A4BD),
+                    ),
+                    _piece(
+                      width: width,
+                      height: height,
+                      progress: progress,
+                      x: 0.49,
+                      fall: 0.37,
+                      sway: 15,
+                      rotation: 4.8,
+                      color: const Color(0xFFFFD76A),
+                    ),
+                    _piece(
+                      width: width,
+                      height: height,
+                      progress: progress,
+                      x: 0.60,
+                      fall: 0.55,
+                      sway: -22,
+                      rotation: -6.2,
+                      color: const Color(0xFF9BDCC9),
+                    ),
+                    _piece(
+                      width: width,
+                      height: height,
+                      progress: progress,
+                      x: 0.71,
+                      fall: 0.40,
+                      sway: 19,
+                      rotation: 5.5,
+                      color: const Color(0xFFF75283),
+                    ),
+                    _piece(
+                      width: width,
+                      height: height,
+                      progress: progress,
+                      x: 0.82,
+                      fall: 0.56,
+                      sway: -16,
+                      rotation: -5.4,
+                      color: const Color(0xFFFFC84A),
+                    ),
+                    _piece(
+                      width: width,
+                      height: height,
+                      progress: progress,
+                      x: 0.91,
+                      fall: 0.35,
+                      sway: -20,
+                      rotation: 6.1,
+                      color: const Color(0xFF8FC5FF),
+                    ),
+                    _piece(
+                      width: width,
+                      height: height,
+                      progress: progress,
+                      x: 0.12,
+                      fall: 0.68,
+                      sway: 24,
+                      rotation: -5.9,
+                      color: const Color(0xFFF0A5D0),
+                    ),
+                    _piece(
+                      width: width,
+                      height: height,
+                      progress: progress,
+                      x: 0.86,
+                      fall: 0.69,
+                      sway: -24,
+                      rotation: 6.0,
+                      color: const Color(0xFF91D5C1),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        ),
+      ),
     );
   }
 }
@@ -708,10 +1166,51 @@ class _SummaryStep extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 32, 20, 28),
       children: [
         SizedBox(
-          height: 190,
-          child: Image.asset(
-            'assets/images/bomi/bomi_breath_complete.png',
-            fit: BoxFit.contain,
+          height: 220,
+          child: TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0.72, end: 1.16),
+            duration: const Duration(milliseconds: 430),
+            curve: Curves.easeOutBack,
+            builder: (context, scale, child) {
+              return Transform.scale(scale: scale, child: child);
+            },
+            child: Stack(
+              alignment: Alignment.center,
+              clipBehavior: Clip.none,
+              children: [
+                Image.asset(
+                  'assets/images/bomi/bomi_breath_complete.png',
+                  fit: BoxFit.contain,
+                ),
+                const Positioned(
+                  top: 7,
+                  right: 46,
+                  child: Icon(
+                    Icons.auto_awesome_rounded,
+                    color: Color(0xFFFFC84A),
+                    size: 23,
+                  ),
+                ),
+                const Positioned(
+                  top: 43,
+                  left: 43,
+                  child: Icon(
+                    Icons.auto_awesome_rounded,
+                    color: Color(0xFFF58AA8),
+                    size: 15,
+                  ),
+                ),
+                const Positioned(
+                  bottom: 24,
+                  right: 35,
+                  child: Icon(
+                    Icons.favorite_rounded,
+                    color: Color(0xFFFFA6BE),
+                    size: 15,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
         const SizedBox(height: 8),

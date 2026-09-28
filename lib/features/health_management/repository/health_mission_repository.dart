@@ -20,9 +20,7 @@ abstract class HealthMissionRepository {
     required String answerId,
   });
 
-  Future<HealthBingoBoard> getWeeklyBingo(
-    int missionId,
-  );
+  Future<HealthBingoBoard> getWeeklyBingo(int missionId);
 
   Future<HealthMissionLog> saveMissionLog({
     required int missionId,
@@ -105,24 +103,16 @@ class PatientHealthMissionRepository implements HealthMissionRepository {
   }
 
   @override
-  Future<HealthBingoBoard> getWeeklyBingo(
-    int missionId,
-  ) async {
-    final response = await client.dio.get<Object?>(
-      '$_path$missionId/bingo/',
-    );
+  Future<HealthBingoBoard> getWeeklyBingo(int missionId) async {
+    final response = await client.dio.get<Object?>('$_path$missionId/bingo/');
 
     final data = response.data;
 
     if (data is! Map) {
-      throw const FormatException(
-        '두근빙고 응답이 올바르지 않습니다.',
-      );
+      throw const FormatException('두근빙고 응답이 올바르지 않습니다.');
     }
 
-    return HealthBingoBoard.fromJson(
-      Map<String, dynamic>.from(data),
-    );
+    return HealthBingoBoard.fromJson(Map<String, dynamic>.from(data));
   }
 
   @override
@@ -155,7 +145,15 @@ class PatientHealthMissionRepository implements HealthMissionRepository {
       throw const FormatException('건강 미션 수행 기록 응답이 올바르지 않습니다.');
     }
 
-    return HealthMissionLog.fromJson(Map<String, dynamic>.from(data));
+    final responseMap = Map<String, dynamic>.from(data);
+    final logData = responseMap['log'];
+
+    if (logData is! Map) {
+      throw const FormatException('건강 미션 수행 기록 정보가 올바르지 않습니다.');
+    }
+
+    // Backend의 log/mission wrapper 중 실제 수행 기록만 파싱한다.
+    return HealthMissionLog.fromJson(Map<String, dynamic>.from(logData));
   }
 
   @override

@@ -360,6 +360,18 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
           code != 'WEEKLY_BINGO';
     }).toList();
 
+    // 오늘의 체크인 완료 여부를 홈 카드에도 동일하게 반영한다.
+    var checkInCompleted = false;
+
+    for (final mission in _missions) {
+      final code = mission.healthMission.code.trim().toUpperCase();
+
+      if (code == 'DAILY_CHECKIN') {
+        checkInCompleted = mission.isCompleted;
+        break;
+      }
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFD),
       appBar: widget.embedded
@@ -381,7 +393,10 @@ class _HealthManagementScreenState extends State<HealthManagementScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
           children: [
-            _TodayCheckInCard(onTap: _openCheckIn),
+            _TodayCheckInCard(
+              onTap: _openCheckIn,
+              isCompleted: checkInCompleted,
+            ),
             const SizedBox(height: 16),
             if (widget.conceptSection != null) ...[
               widget.conceptSection!,
@@ -543,22 +558,29 @@ class _RewardEntryCard extends StatelessWidget {
 }
 
 class _TodayCheckInCard extends StatelessWidget {
-  const _TodayCheckInCard({required this.onTap});
+  const _TodayCheckInCard({required this.onTap, required this.isCompleted});
 
   final VoidCallback onTap;
+  final bool isCompleted;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 17, 12, 16),
+      padding: EdgeInsets.fromLTRB(18, 14, 12, isCompleted ? 12 : 16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFF4F8FF), Color(0xFFFFFBFD)],
+        gradient: LinearGradient(
+          colors: isCompleted
+              ? const [Color(0xFFFFF3F7), Color(0xFFF3F7FF)]
+              : const [Color(0xFFF4F8FF), Color(0xFFFFFBFD)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE1EAF8)),
+        border: Border.all(
+          color: isCompleted
+              ? const Color(0xFFFFD8E5)
+              : const Color(0xFFE1EAF8),
+        ),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0A183B70),
@@ -595,91 +617,258 @@ class _TodayCheckInCard extends StatelessWidget {
             ),
           ),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      '오늘의 두근 체크인',
-                      style: TextStyle(
-                        color: AppColors.navy,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w900,
-                      ),
+                    Wrap(
+                      spacing: 7,
+                      runSpacing: 5,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          isCompleted ? '오늘 체크인 완료' : '오늘의 두근 체크인',
+                          style: const TextStyle(
+                            color: AppColors.navy,
+                            fontSize: 19,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        if (isCompleted)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFEAF1),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.check_circle_rounded,
+                                  size: 13,
+                                  color: Color(0xFFF75283),
+                                ),
+                                SizedBox(width: 3),
+                                Text(
+                                  '완료',
+                                  style: TextStyle(
+                                    color: Color(0xFFF75283),
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 6),
-                    const Text(
-                      '오늘의 몸과 마음을 가볍게 확인해요.',
-                      style: TextStyle(
+                    Text(
+                      isCompleted
+                          ? '오늘도 건강 체크를 잘 마쳤어요.'
+                          : '오늘의 몸과 마음을 가볍게 확인해요.',
+                      style: const TextStyle(
                         color: AppColors.mutedText,
                         fontSize: 12.5,
                         height: 1.4,
                       ),
                     ),
                     const SizedBox(height: 9),
-                    const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.schedule_rounded,
-                          size: 14,
-                          color: Color(0xFF6D7E99),
-                        ),
-                        SizedBox(width: 4),
-                        Text(
-                          '약 1분이면 충분해요',
-                          style: TextStyle(
-                            color: Color(0xFF6D7E99),
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton(
-                      onPressed: onTap,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFF75283),
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(160, 36),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 22,
-                          vertical: 7,
-                        ),
-                        shape: const StadiumBorder(),
-                        elevation: 0,
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
+
+                    if (isCompleted) ...[
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
                         children: [
-                          Text(
-                            '체크인 시작',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEAF3FF),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.air_rounded,
+                                  size: 14,
+                                  color: Color(0xFF4E7DDD),
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  '1분 숨쉬기 완료',
+                                  style: TextStyle(
+                                    color: Color(0xFF345CBA),
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          SizedBox(width: 6),
-                          Icon(Icons.arrow_forward_rounded, size: 17),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFEAF1),
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.card_giftcard_rounded,
+                                  size: 14,
+                                  color: Color(0xFFF75283),
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  '리워드 적립',
+                                  style: TextStyle(
+                                    color: Color(0xFFF04D7B),
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
-                    ),
+
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF6F8FC),
+                          borderRadius: BorderRadius.circular(11),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(
+                              Icons.calendar_today_rounded,
+                              size: 12,
+                              color: Color(0xFF7B8AA3),
+                            ),
+                            SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                '내일도 함께해요 👋',
+                                style: TextStyle(
+                                  color: Color(0xFF687891),
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            Text('', style: TextStyle(fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                    ] else ...[
+                      const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.schedule_rounded,
+                            size: 14,
+                            color: Color(0xFF6D7E99),
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            '약 1분이면 충분해요',
+                            style: TextStyle(
+                              color: Color(0xFF6D7E99),
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: onTap,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFFF75283),
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(160, 36),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 22,
+                            vertical: 7,
+                          ),
+                          shape: const StadiumBorder(),
+                          elevation: 0,
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '체크인 시작',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            SizedBox(width: 6),
+                            Icon(Icons.arrow_forward_rounded, size: 17),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
               const SizedBox(width: 4),
               SizedBox(
-                width: 132,
-                height: 138,
-                child: Align(
+                width: isCompleted ? 108 : 132,
+                height: isCompleted ? 112 : 138,
+                child: Stack(
                   alignment: Alignment.bottomCenter,
-                  child: Image.asset(
-                    'assets/images/bomi/bomi_health_checkin.png',
-                    fit: BoxFit.contain,
-                  ),
+                  clipBehavior: Clip.none,
+                  children: [
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Image.asset(
+                        'assets/images/bomi/bomi_health_checkin.png',
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    if (isCompleted) ...[
+                      const Positioned(
+                        top: 2,
+                        right: 10,
+                        child: Icon(
+                          Icons.auto_awesome_rounded,
+                          size: 19,
+                          color: Color(0xFFFFC84A),
+                        ),
+                      ),
+                      const Positioned(
+                        top: 29,
+                        left: 6,
+                        child: Icon(
+                          Icons.auto_awesome_rounded,
+                          size: 13,
+                          color: Color(0xFFF58AA8),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],
