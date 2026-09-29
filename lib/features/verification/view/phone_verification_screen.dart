@@ -42,9 +42,12 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
       return;
     }
 
-    final phone = _phone.text.trim();
+    final input = _phone.text.replaceAll(RegExp(r'[^0-9]'), '');
+    final phoneNumber = input.startsWith('010') && input.length == 11
+        ? '+82${input.substring(1)}'
+        : input;
 
-    if (!RegExp(r'^010\d{8}$').hasMatch(phone)) {
+    if (!RegExp(r'^010\d{8}$').hasMatch(input)) {
       setState(() {
         _message = '010으로 시작하는 휴대폰 번호 11자리를 입력해 주세요.';
       });
@@ -76,6 +79,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
         },
 
         verificationFailed: (error) {
+          debugPrint('Phone auth failed: ${error.code} / ${error.message}');
           if (!_isCurrent(requestId) || _verifying) {
             return;
           }
@@ -358,8 +362,8 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
       'network-request-failed' => '인터넷 연결을 확인해 주세요.',
       'operation-not-allowed' =>
         '전화번호 인증 요청 실패\n'
-        '코드: ${error.code}\n'
-        '내용: ${error.message ?? '상세 정보 없음'}',
+            '코드: ${error.code}\n'
+            '내용: ${error.message ?? '상세 정보 없음'}',
       _ => '휴대폰 인증을 진행하지 못했어요. 오류 코드: ${error.code}',
     };
   }
