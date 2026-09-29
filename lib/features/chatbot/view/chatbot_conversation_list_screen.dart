@@ -120,24 +120,37 @@ class _ChatbotConversationListScreenState
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('AI 건강 챗봇')),
+      appBar: AppBar(title: const Text('두근 건강 상담')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _creating ? null : _createConversation,
+        backgroundColor: scheme.primary,
+        foregroundColor: scheme.onPrimary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         icon: _creating
-            ? const SizedBox(
+            ? SizedBox(
                 width: 20,
                 height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: scheme.onPrimary,
+                ),
               )
-            : const Icon(Icons.add_comment_outlined),
-        label: const Text('새 대화'),
+            : const Icon(Icons.add_comment_rounded),
+        label: const Text(
+          '새 상담 시작',
+          style: TextStyle(fontWeight: FontWeight.w600),
+        ),
       ),
       body: RefreshIndicator(onRefresh: _load, child: _buildContent()),
     );
   }
 
   Widget _buildContent() {
+    final scheme = Theme.of(context).colorScheme;
+
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -154,7 +167,11 @@ class _ChatbotConversationListScreenState
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.error_outline, size: 42),
+                    Icon(
+                      Icons.error_outline_rounded,
+                      size: 42,
+                      color: scheme.primary,
+                    ),
                     const SizedBox(height: 12),
                     Text(_errorMessage!, textAlign: TextAlign.center),
                     const SizedBox(height: 16),
@@ -171,68 +188,164 @@ class _ChatbotConversationListScreenState
     if (_conversations.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        children: const [
-          SizedBox(
-            height: 420,
-            child: Center(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.smart_toy_outlined, size: 54),
-                    SizedBox(height: 16),
-                    Text(
-                      '아직 대화가 없어요.',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
+        padding: const EdgeInsets.fromLTRB(24, 72, 24, 120),
+        children: [
+          Center(
+            child: Column(
+              children: [
+                Container(
+                  width: 76,
+                  height: 76,
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: scheme.primary.withValues(alpha: 0.06),
+                  ),
+                  child: ClipOval(
+                    child: Image.asset(
+                      'assets/images/bomi/bomi_chatbot.png',
+                      fit: BoxFit.cover,
                     ),
-                    SizedBox(height: 6),
-                    Text(
-                      '새 대화를 시작해 건강 정보에 대해 물어보세요.',
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+                const SizedBox(height: 18),
+                const Text(
+                  '보미와 이야기를 시작해 보세요',
+                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '검사 결과와 건강 정보에 대해\n궁금한 내용을 편하게 물어보세요.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(height: 1.5, color: scheme.onSurfaceVariant),
+                ),
+              ],
             ),
           ),
         ],
       );
     }
 
-    return ListView.separated(
+    return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
-      itemCount: _conversations.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final conversation = _conversations[index];
-
-        return Card(
-          child: ListTile(
-            onTap: () {
-              _openConversation(conversation);
-            },
-            leading: CircleAvatar(
-              child: Icon(
-                conversation.isActive
-                    ? Icons.chat_bubble_outline
-                    : Icons.history,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: scheme.primary.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: scheme.primary.withValues(alpha: 0.08)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: scheme.surface,
+                ),
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/images/bomi/bomi_chatbot.png',
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '보미와 건강 이야기를 나눠보세요',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '이전 상담을 이어가거나 새 상담을 시작할 수 있어요.',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        height: 1.4,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+        ..._conversations.map((conversation) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Card(
+              elevation: 0,
+              margin: EdgeInsets.zero,
+              color: conversation.isActive
+                  ? scheme.primary.withValues(alpha: 0.045)
+                  : scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+                side: BorderSide(
+                  color: scheme.outlineVariant.withValues(alpha: 0.55),
+                ),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                onTap: () {
+                  _openConversation(conversation);
+                },
+                leading: Container(
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: scheme.primary.withValues(alpha: 0.10),
+                  ),
+                  child: Icon(
+                    conversation.isActive
+                        ? Icons.chat_bubble_outline_rounded
+                        : Icons.history_rounded,
+                    color: scheme.primary,
+                    size: 23,
+                  ),
+                ),
+                title: Text(
+                  conversation.displayTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: Text(
+                    conversation.isActive ? '상담 진행 중' : '종료된 상담',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                trailing: Icon(
+                  Icons.chevron_right_rounded,
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
             ),
-            title: Text(
-              conversation.displayTitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            subtitle: Text(conversation.isActive ? '대화 진행 중' : '종료된 대화'),
-            trailing: const Icon(Icons.chevron_right),
-          ),
-        );
-      },
+          );
+        }),
+      ],
     );
   }
 }
