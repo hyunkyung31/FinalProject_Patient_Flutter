@@ -40,6 +40,7 @@ class _PatientAIResultListScreenState extends State<PatientAIResultListScreen> {
 
   // 전체 공개 결과 중 요청된 분석 유형만 선택적으로 남긴다.
   Future<List<PatientAIResult>> _loadResults() async {
+    // type 쿼리를 사용하지 않고 환자 AI 결과 전체를 조회한다.
     final results = await widget.repository.getResults();
     final analysisType = widget.analysisType?.trim().toUpperCase();
 
@@ -47,35 +48,30 @@ class _PatientAIResultListScreenState extends State<PatientAIResultListScreen> {
       return results;
     }
 
-    final filtered = results
+    if (analysisType == 'CLINICAL') {
+      final clinicalResults = results
+          .where(
+            (result) =>
+                result.analysisType.trim().toUpperCase() == 'CLINICAL' &&
+                result.clinical?.probability != null,
+          )
+          .toList();
+
+      // Repository가 generatedAt 최신순으로 정렬하므로 첫 번째 결과를 사용한다.
+      if (clinicalResults.isEmpty) {
+        return [];
+      }
+
+      return [clinicalResults.first];
+    }
+
+    return results
         .where(
           (result) => result.analysisType.trim().toUpperCase() == analysisType,
         )
         .toList();
-
-    if (analysisType != 'CLINICAL') {
-      return filtered;
-    }
-
-    // 새 API에서는 examination_id 기준으로 정확히 재실행 결과를 묶는다.
-    // 구 API에서는 같은 날짜의 최신 Clinical 결과만 표시한다.
-    final seenClinicalResults = <String>{};
-
-    return filtered.where((result) {
-      final examinationId = result.examinationId;
-      final generatedAt = result.generatedAt;
-
-      final key = examinationId != null
-          ? 'exam:$examinationId'
-          : 'date:${generatedAt.year}-'
-                '${generatedAt.month}-'
-                '${generatedAt.day}';
-
-      return seenClinicalResults.add(key);
-    }).toList();
   }
 
-  // AI 결과 목록 새로고침
   IconData get _emptyIcon {
     final type = widget.analysisType?.trim().toUpperCase();
 
@@ -107,6 +103,9 @@ class _PatientAIResultListScreenState extends State<PatientAIResultListScreen> {
         builder: (_) => PatientAIResultDetailScreen(
           repository: widget.repository,
           resultId: result.id,
+          initialResult: result.analysisType.trim().toUpperCase() == 'CLINICAL'
+              ? result
+              : null,
           title: widget.title,
         ),
       ),
@@ -339,16 +338,11 @@ class _ErrorView extends StatelessWidget {
 
 // 목록에서 사용할 환자용 결과 요약 선택
 String _summaryText(PatientAIResult result) {
-  if (
-    result.analysisType.trim().toUpperCase() == 'CLINICAL'
-  ) {
-    final probability =
-        result.clinical?.probability ?? result.confidence;
+  if (result.analysisType.trim().toUpperCase() == 'CLINICAL') {
+    final probability = result.clinical?.probability;
 
     if (probability != null) {
-      final score =
-          (probability.clamp(0.0, 1.0) * 100)
-              .toStringAsFixed(1);
+      final score = (probability.clamp(0.0, 1.0) * 100).toStringAsFixed(1);
 
       return 'AI 예측 점수 $score%';
     }

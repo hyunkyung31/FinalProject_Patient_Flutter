@@ -10,11 +10,13 @@ class PatientAIResultDetailScreen extends StatefulWidget {
     super.key,
     required this.repository,
     required this.resultId,
+    this.initialResult,
     this.title = 'AI 분석 결과',
   });
 
   final PatientAIResultRepository repository;
   final int resultId;
+  final PatientAIResult? initialResult;
   final String title;
 
   @override
@@ -32,8 +34,17 @@ class _PatientAIResultDetailScreenState
     _load();
   }
 
-  // 최신 AI 결과 상세를 API에서 다시 조회
+  // Clinical은 목록 API에서 받은 결과를 사용하고,
+  // 그 외 AI 결과만 기존 상세 API에서 다시 조회한다.
   void _load() {
+    final initialResult = widget.initialResult;
+
+    if (initialResult != null &&
+        initialResult.analysisType.trim().toUpperCase() == 'CLINICAL') {
+      _result = Future.value(initialResult);
+      return;
+    }
+
     _result = widget.repository.getResult(widget.resultId);
   }
 
@@ -212,20 +223,14 @@ class _ResultContent extends StatelessWidget {
 
         if ((isXca || isCcta) && result.images.isNotEmpty) ...[
           _SectionCard(
-            title: isXca
-                ? '혈관조영술 대표 이미지'
-                : '관상동맥 CT 대표 이미지',
+            title: isXca ? '혈관조영술 대표 이미지' : '관상동맥 CT 대표 이미지',
             icon: Icons.image_outlined,
             subtitle: '의료진 확인 후 공개된 대표 이미지를 확인할 수 있어요.',
             child: Column(
               children: [
-                for (var index = 0;
-                    index < result.images.length;
-                    index++) ...[
+                for (var index = 0; index < result.images.length; index++) ...[
                   if (index > 0) const SizedBox(height: 16),
-                  _PatientAIImageCard(
-                    image: result.images[index],
-                  ),
+                  _PatientAIImageCard(image: result.images[index]),
                 ],
               ],
             ),
@@ -241,13 +246,13 @@ class _ResultContent extends StatelessWidget {
         // Clinical은 작업 완료 문구 대신 전용 예측 결과만 표시
         if (!isClinical)
           _SectionCard(
-          title: '결과 요약',
-          icon: Icons.assignment_outlined,
-          child: Text(
-            _summaryText(result),
-            style: const TextStyle(height: 1.65, color: AppColors.text),
+            title: '결과 요약',
+            icon: Icons.assignment_outlined,
+            child: Text(
+              _summaryText(result),
+              style: const TextStyle(height: 1.65, color: AppColors.text),
+            ),
           ),
-        ),
 
         if (explanations.isNotEmpty) ...[
           const SizedBox(height: 16),
@@ -823,9 +828,7 @@ String _riskLabel(String raw) {
 
 // Clinical AI 예측값을 환자에게 이해하기 쉬운 형태로 표시
 class _ClinicalRiskCard extends StatelessWidget {
-  const _ClinicalRiskCard({
-    required this.clinical,
-  });
+  const _ClinicalRiskCard({required this.clinical});
 
   final PatientAIClinical clinical;
 
@@ -840,8 +843,7 @@ class _ClinicalRiskCard extends StatelessWidget {
     return _SectionCard(
       title: 'AI 예측 결과',
       icon: Icons.favorite_outline_rounded,
-      subtitle:
-          '임상정보와 검사 데이터를 바탕으로 산출한 참고용 AI 예측 결과예요.',
+      subtitle: '임상정보와 검사 데이터를 바탕으로 산출한 참고용 AI 예측 결과예요.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -849,8 +851,7 @@ class _ClinicalRiskCard extends StatelessWidget {
             'AI 예측 점수',
             style: TextStyle(
               fontSize: 12,
-              color:
-                  Theme.of(context).colorScheme.onSurfaceVariant,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(height: 4),
@@ -871,8 +872,7 @@ class _ClinicalRiskCard extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               height: 1.5,
-              color:
-                  Theme.of(context).colorScheme.onSurfaceVariant,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -880,7 +880,6 @@ class _ClinicalRiskCard extends StatelessWidget {
     );
   }
 }
-
 
 // 공개된 XCA/CCTA 대표 이미지를 표시
 class _PatientAIImageCard extends StatelessWidget {
@@ -912,32 +911,20 @@ class _PatientAIImageCard extends StatelessWidget {
           child: AspectRatio(
             aspectRatio: 4 / 3,
             child: ColoredBox(
-              color: Theme.of(context)
-                  .colorScheme
-                  .surfaceContainerHighest,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               child: url.isEmpty
                   ? const _PatientAIImageFallback()
                   : Image.network(
                       url,
                       fit: BoxFit.contain,
-                      loadingBuilder: (
-                        context,
-                        child,
-                        progress,
-                      ) {
+                      loadingBuilder: (context, child, progress) {
                         if (progress == null) {
                           return child;
                         }
 
-                        return const Center(
-                          child: CircularProgressIndicator(),
-                        );
+                        return const Center(child: CircularProgressIndicator());
                       },
-                      errorBuilder: (
-                        context,
-                        error,
-                        stackTrace,
-                      ) {
+                      errorBuilder: (context, error, stackTrace) {
                         return const _PatientAIImageFallback();
                       },
                     ),
@@ -948,7 +935,6 @@ class _PatientAIImageCard extends StatelessWidget {
     );
   }
 }
-
 
 // 이미지 URL 만료 또는 네트워크 오류 시 안내
 class _PatientAIImageFallback extends StatelessWidget {
@@ -973,7 +959,6 @@ class _PatientAIImageFallback extends StatelessWidget {
     );
   }
 }
-
 
 class _SectionCard extends StatelessWidget {
   const _SectionCard({
