@@ -67,7 +67,7 @@ class _PhoneVerificationScreenState extends State<PhoneVerificationScreen> {
     try {
       await FirebaseAuth.instance.verifyPhoneNumber(
         // 01012345678 → +821012345678
-        phoneNumber: '+82${phone.substring(1)}',
+        phoneNumber: phoneNumber,
         timeout: const Duration(seconds: 60),
 
         verificationCompleted: (credential) async {
