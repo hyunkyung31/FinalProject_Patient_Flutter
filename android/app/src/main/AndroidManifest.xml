@@ -10,7 +10,7 @@
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 
     <application
-        android:label="flutter_patient"
+        android:label="DUGN"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
@@ -56,7 +56,7 @@
             android:name="com.kakao.sdk.flutter.auth.AuthCodeHandlerActivity"
             android:exported="true">
 
-            <intent-filter android:label="flutter_web_auth">
+            <intent-filter android:label="DUGN">
                 <action android:name="android.intent.action.VIEW" />
 
                 <category android:name="android.intent.category.DEFAULT" />
