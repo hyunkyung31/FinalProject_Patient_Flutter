@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../notification/service/notification_ui_signal.dart';
 
 import '../model/patient_reservation.dart';
 import '../repository/reservation_repository.dart';
@@ -25,6 +26,10 @@ class _ReservationListScreenState extends State<ReservationListScreen>
     with WidgetsBindingObserver {
   Timer? _refreshTimer;
   bool _refreshing = false;
+  bool _hasPendingReservation = true;
+  int _stableTicks = 0;
+  Map<int, String> _knownStatuses = <int, String>{};
+  String? _lastStateSignature;
   late Future<List<PatientReservation>>? _reservations = widget.repository
       ?.getReservations();
 
@@ -32,11 +37,26 @@ class _ReservationListScreenState extends State<ReservationListScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted &&
-          ModalRoute.of(context)?.isCurrent == true &&
-          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
-        _reload();
+
+    // ?? ??? ??? REQUESTED -> ACCEPTED ??? ??? ?????.
+    _reservations?.then((items) {
+      if (!mounted) return;
+      _rememberState(items);
+    }, onError: (_) {});
+
+    // ?? ?? ??? 1?, ?? ??? 30? ???? ?????.
+    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted ||
+          ModalRoute.of(context)?.isCurrent != true ||
+          WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+        return;
+      }
+
+      _stableTicks += 1;
+
+      if (_hasPendingReservation || _stableTicks >= 30) {
+        _stableTicks = 0;
+        _reload(silent: true);
       }
     });
   }
@@ -46,7 +66,7 @@ class _ReservationListScreenState extends State<ReservationListScreen>
     if (state == AppLifecycleState.resumed &&
         mounted &&
         ModalRoute.of(context)?.isCurrent == true) {
-      _reload();
+      _reload(silent: true);
     }
   }
 
@@ -57,17 +77,75 @@ class _ReservationListScreenState extends State<ReservationListScreen>
     super.dispose();
   }
 
-  Future<void> _reload() async {
+  Future<void> _reload({bool silent = false}) async {
     final repository = widget.repository;
     if (repository == null || _refreshing || !mounted) return;
+
     _refreshing = true;
-    final next = repository.getReservations();
-    setState(() => _reservations = next);
+
     try {
-      await next;
+      final items = await repository.getReservations();
+
+      if (!mounted) return;
+
+      var acceptedNow = false;
+
+      for (final item in items) {
+        if (_knownStatuses[item.id] == 'REQUESTED' &&
+            item.status == 'ACCEPTED') {
+          acceptedNow = true;
+        }
+      }
+
+      final changed = _rememberState(items);
+
+      if (changed) {
+        setState(() {
+          _reservations = Future.value(items);
+        });
+      }
+
+      if (acceptedNow) {
+        NotificationUiSignal.instance.show(
+          '\uC608\uC57D\uC774 \uD655\uC815\uB418\uC5C8\uC5B4\uC694',
+          '\uC9C4\uB8CC \uC77C\uC815\uC774 \uCD5C\uC2E0 \uC815\uBCF4\uB85C \uC5C5\uB370\uC774\uD2B8\uB418\uC5C8\uC2B5\uB2C8\uB2E4.',
+        );
+      }
+    } catch (error) {
+      if (!silent && mounted) {
+        setState(() {
+          _reservations = Future.error(error);
+        });
+      }
     } finally {
       _refreshing = false;
     }
+  }
+
+  bool _rememberState(List<PatientReservation> items) {
+    final nextSignature = items
+        .map(
+          (item) =>
+              '${item.id}:${item.status}:'
+              '${item.latestChangeRequest?.status ?? ''}:'
+              '${item.reservedAt.toIso8601String()}',
+        )
+        .join('|');
+
+    final changed =
+        _lastStateSignature != null && _lastStateSignature != nextSignature;
+
+    _lastStateSignature = nextSignature;
+
+    _knownStatuses = {for (final item in items) item.id: item.status};
+
+    _hasPendingReservation = items.any(
+      (item) =>
+          item.status == 'REQUESTED' ||
+          item.latestChangeRequest?.status == 'PENDING',
+    );
+
+    return changed;
   }
 
   Widget _reservationList(bool past) {

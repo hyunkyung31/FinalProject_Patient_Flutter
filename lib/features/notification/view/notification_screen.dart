@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../model/patient_notification.dart';
 import '../repository/notification_repository.dart';
+import '../service/notification_ui_signal.dart';
 import '../../reservation/repository/reservation_repository.dart';
 import '../../reservation/view/patient_reservation_detail_screen.dart';
 
@@ -237,7 +240,9 @@ class _NotificationScreenState extends State<NotificationScreen> {
 
 class PatientNotificationButton extends StatefulWidget {
   const PatientNotificationButton({super.key, required this.repository});
+
   final ReservationRepository repository;
+
   @override
   State<PatientNotificationButton> createState() =>
       _PatientNotificationButtonState();
@@ -246,22 +251,50 @@ class PatientNotificationButton extends StatefulWidget {
 class _PatientNotificationButtonState extends State<PatientNotificationButton>
     with WidgetsBindingObserver {
   int? count;
+
+  final GlobalKey _bellKey = GlobalKey();
+
+  Timer? _bubbleTimer;
+  Timer? _badgeRefreshTimer;
+  OverlayEntry? _bubbleEntry;
+
+  late final VoidCallback _notificationSignalListener;
+
   @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addObserver(this);
+
+    _notificationSignalListener = _handleNotificationSignal;
+
+    NotificationUiSignal.instance.event.addListener(
+      _notificationSignalListener,
+    );
+
     _load();
   }
 
   @override
   void dispose() {
+    _bubbleTimer?.cancel();
+    _badgeRefreshTimer?.cancel();
+    _removeBubble();
+
+    NotificationUiSignal.instance.event.removeListener(
+      _notificationSignalListener,
+    );
+
     WidgetsBinding.instance.removeObserver(this);
+
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _load();
+    if (state == AppLifecycleState.resumed) {
+      _load();
+    }
   }
 
   Future<void> _load() async {
@@ -269,28 +302,214 @@ class _PatientNotificationButtonState extends State<PatientNotificationButton>
       final value = await NotificationRepository(
         widget.repository.client,
       ).unreadCount();
-      if (mounted) setState(() => count = value);
+
+      if (mounted) {
+        setState(() => count = value);
+      }
     } catch (_) {
-      if (mounted) setState(() => count = null);
+      if (mounted) {
+        setState(() => count = null);
+      }
+    }
+  }
+
+  void _handleNotificationSignal() {
+    final event = NotificationUiSignal.instance.event.value;
+
+    if (!mounted || event == null) {
+      return;
+    }
+
+    // ?? ??? ?? ?? ??? ?? ?? ?????.
+    if (count != null) {
+      setState(() => count = count! + 1);
+    } else {
+      _load();
+    }
+
+    // ??? ?? unread count? ?? ??????.
+    _badgeRefreshTimer?.cancel();
+    _badgeRefreshTimer = Timer(const Duration(milliseconds: 900), () {
+      if (mounted) {
+        _load();
+      }
+    });
+
+    // ?? ??? ? ???? ?? ?? ???? ?????.
+    if (ModalRoute.of(context)?.isCurrent == true) {
+      _showBubble(event);
+    }
+  }
+
+  void _showBubble(NotificationUiEvent event) {
+    _removeBubble();
+
+    final bellContext = _bellKey.currentContext;
+    final renderBox = bellContext?.findRenderObject() as RenderBox?;
+
+    if (renderBox == null || !renderBox.hasSize) {
+      return;
+    }
+
+    final bellOffset = renderBox.localToGlobal(Offset.zero);
+
+    final screenWidth = MediaQuery.sizeOf(context).width;
+
+    // ?? ??? ?? 12px ??? ?????.
+    final bubbleWidth = screenWidth > 324.0 ? 300.0 : screenWidth - 24.0;
+
+    final bubbleLeft = screenWidth - 12.0 - bubbleWidth;
+
+    final bellCenterX = bellOffset.dx + renderBox.size.width / 2;
+
+    // ??? ??? ?? ? ??? ???? ?????.
+    final arrowCenterX = (bellCenterX - bubbleLeft)
+        .clamp(12.0, bubbleWidth - 12.0)
+        .toDouble();
+
+    final bubbleTop = bellOffset.dy + renderBox.size.height + 4.0;
+
+    final overlay = Overlay.of(context, rootOverlay: true);
+
+    final entry = OverlayEntry(
+      builder: (_) => Positioned(
+        top: bubbleTop,
+        right: 12,
+        width: bubbleWidth,
+        child: Material(
+          type: MaterialType.transparency,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                top: 1,
+                left: arrowCenterX - 6,
+                child: Transform.rotate(
+                  angle: 0.785398,
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: const BoxDecoration(color: Color(0xFFF7FBFF)),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: GestureDetector(
+                  onTap: _openNotifications,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 13,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7FBFF),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFD8E8FF)),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x1A0F2A52),
+                          blurRadius: 18,
+                          offset: Offset(0, 7),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFEAF3FF),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.notifications_active_rounded,
+                            size: 20,
+                            color: Color(0xFF286BFF),
+                          ),
+                        ),
+                        const SizedBox(width: 11),
+                        Expanded(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                event.title,
+                                style: const TextStyle(
+                                  color: Color(0xFF182438),
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                event.body,
+                                style: const TextStyle(
+                                  color: Color(0xFF7182A1),
+                                  fontSize: 12.5,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    _bubbleEntry = entry;
+    overlay.insert(entry);
+
+    _bubbleTimer = Timer(const Duration(seconds: 4), _removeBubble);
+  }
+
+  void _removeBubble() {
+    _bubbleTimer?.cancel();
+    _bubbleTimer = null;
+
+    _bubbleEntry?.remove();
+    _bubbleEntry = null;
+  }
+
+  Future<void> _openNotifications() async {
+    _removeBubble();
+
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) =>
+            NotificationScreen(reservationRepository: widget.repository),
+      ),
+    );
+
+    if (mounted) {
+      await _load();
     }
   }
 
   @override
   Widget build(BuildContext context) => IconButton(
-    tooltip: count == null ? '알림' : '알림 · 읽지 않음 $count개',
+    key: _bellKey,
+    tooltip: count == null
+        ? '\uC54C\uB9BC'
+        : '\uC54C\uB9BC \u00B7 '
+              '\uC77D\uC9C0 \uC54A\uC74C '
+              '$count\uAC1C',
     icon: Badge(
       isLabelVisible: count != null && count! > 0,
       label: Text(count != null && count! > 99 ? '99+' : '${count ?? 0}'),
       child: const Icon(Icons.notifications_none_rounded),
     ),
-    onPressed: () async {
-      await Navigator.of(context).push<void>(
-        MaterialPageRoute(
-          builder: (_) =>
-              NotificationScreen(reservationRepository: widget.repository),
-        ),
-      );
-      if (mounted) await _load();
-    },
+    onPressed: _openNotifications,
   );
 }
