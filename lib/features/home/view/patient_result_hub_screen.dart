@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/config/patient_feature_flags.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../ai_result/repository/patient_ai_result_repository.dart';
 import '../../ai_result/view/patient_ai_result_list_screen.dart';
@@ -79,21 +80,22 @@ class PatientResultHubScreen extends StatelessWidget {
             ),
           ),
 
-          _ResultMenuCard(
-            icon: Icons.favorite_outline_rounded,
-            title: '심혈관 위험도',
-            subtitle: '임상정보와 혈액검사 등을 바탕으로 분석한 심혈관 위험도를 확인해요.',
-            onTap: () => _open(
-              context,
-              PatientAIResultListScreen(
-                repository: PatientAIResultRepository(repository.client),
-                analysisType: 'CLINICAL',
-                title: '심혈관 위험도',
-                emptyTitle: '공개된 심혈관 위험도 결과가 없어요.',
-                emptyMessage: '의료진 검토 후 공개된 결과가 있으면 이곳에서 확인할 수 있어요.',
+          if (PatientFeatureFlags.showClinicalRisk)
+            _ResultMenuCard(
+              icon: Icons.favorite_outline_rounded,
+              title: '심혈관 위험도',
+              subtitle: '임상정보와 혈액검사 등을 바탕으로 분석한 심혈관 위험도를 확인해요.',
+              onTap: () => _open(
+                context,
+                PatientAIResultListScreen(
+                  repository: PatientAIResultRepository(repository.client),
+                  analysisType: 'CLINICAL',
+                  title: '심혈관 위험도',
+                  emptyTitle: '공개된 심혈관 위험도 결과가 없어요.',
+                  emptyMessage: '의료진 검토 후 공개된 결과가 있으면 이곳에서 확인할 수 있어요.',
+                ),
               ),
             ),
-          ),
 
           _ResultMenuCard(
             icon: Icons.monitor_heart_outlined,
