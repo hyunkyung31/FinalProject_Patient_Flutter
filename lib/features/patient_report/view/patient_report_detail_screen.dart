@@ -213,21 +213,13 @@ class _DetailContent extends StatelessWidget {
           ),
         ),
 
-        if (patientExplanations.isNotEmpty) ...[
-          const SizedBox(height: 28),
-          const _ReportGroupHeader(
-            icon: Icons.auto_awesome_outlined,
-            title: '결과 설명',
-            subtitle: '검사 결과를 이해하기 쉽게 정리한 설명이에요.',
-          ),
-          const SizedBox(height: 12),
-          _SectionCard(
-            title: 'AI가 쉽게 설명해 드려요',
-            icon: Icons.chat_bubble_outline_rounded,
-            highlighted: true,
-            child: _AIExplanationContent(explanations: patientExplanations),
-          ),
-        ],
+        const SizedBox(height: 28),
+        _PatientResultExplanationSection(
+          repository: repository,
+          resultId: integrated.medicalResultId,
+          reportVersion: integrated.approval.version,
+          fallbackExplanations: patientExplanations,
+        ),
 
         const SizedBox(height: 28),
 
@@ -918,6 +910,227 @@ class _IntegratedApprovalContent extends StatelessWidget {
                 width: 145,
                 height: 68,
                 fit: BoxFit.contain,
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _PatientResultExplanationSection extends StatefulWidget {
+  const _PatientResultExplanationSection({
+    required this.repository,
+    required this.resultId,
+    required this.reportVersion,
+    required this.fallbackExplanations,
+  });
+
+  final PatientReportRepository repository;
+  final int resultId;
+  final String? reportVersion;
+  final List<PatientAIExplanation> fallbackExplanations;
+
+  @override
+  State<_PatientResultExplanationSection> createState() =>
+      _PatientResultExplanationSectionState();
+}
+
+class _PatientResultExplanationSectionState
+    extends State<_PatientResultExplanationSection> {
+  late Future<PatientResultExplanation> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant _PatientResultExplanationSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (oldWidget.resultId != widget.resultId ||
+        oldWidget.reportVersion != widget.reportVersion) {
+      _load();
+    }
+  }
+
+  void _load({bool forceRefresh = false}) {
+    _future = widget.repository.getResultExplanation(
+      widget.resultId,
+      reportVersion: widget.reportVersion,
+      forceRefresh: forceRefresh,
+    );
+  }
+
+  void _retry() {
+    setState(() {
+      _load(forceRefresh: true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const _ReportGroupHeader(
+          icon: Icons.auto_awesome_outlined,
+          title: '결과 설명',
+          subtitle: '검사 결과를 이해하기 쉽게 정리한 설명이에요.',
+        ),
+        const SizedBox(height: 12),
+        FutureBuilder<PatientResultExplanation>(
+          future: _future,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const _SectionCard(
+                title: 'AI가 쉽게 설명해 드려요',
+                icon: Icons.chat_bubble_outline_rounded,
+                highlighted: true,
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        '공개된 검사 결과를 바탕으로 설명을 준비하고 있어요.',
+                        style: TextStyle(fontSize: 14, height: 1.5),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            final explanation = snapshot.data;
+
+            if (explanation != null && explanation.overview.isNotEmpty) {
+              return _SectionCard(
+                title: 'AI가 쉽게 설명해 드려요',
+                icon: Icons.chat_bubble_outline_rounded,
+                highlighted: true,
+                child: _GeneratedAIExplanationContent(explanation: explanation),
+              );
+            }
+
+            if (widget.fallbackExplanations.isNotEmpty) {
+              return _SectionCard(
+                title: 'AI가 쉽게 설명해 드려요',
+                icon: Icons.chat_bubble_outline_rounded,
+                highlighted: true,
+                child: _AIExplanationContent(
+                  explanations: widget.fallbackExplanations,
+                ),
+              );
+            }
+
+            return _SectionCard(
+              title: 'AI가 쉽게 설명해 드려요',
+              icon: Icons.chat_bubble_outline_rounded,
+              highlighted: true,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '결과 설명을 불러오지 못했습니다. 검사 결과와 의료진 소견은 그대로 확인할 수 있습니다.',
+                    style: TextStyle(fontSize: 14, height: 1.55),
+                  ),
+                  const SizedBox(height: 10),
+                  TextButton.icon(
+                    onPressed: _retry,
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: const Text('다시 시도'),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _GeneratedAIExplanationContent extends StatelessWidget {
+  const _GeneratedAIExplanationContent({required this.explanation});
+
+  final PatientResultExplanation explanation;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          explanation.overview,
+          style: const TextStyle(fontSize: 14, height: 1.6),
+        ),
+        if (explanation.easyExplanations.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          for (final item in explanation.easyExplanations) ...[
+            Text(
+              item.title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: AppColors.text,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(item.text, style: const TextStyle(fontSize: 14, height: 1.55)),
+            const SizedBox(height: 12),
+          ],
+        ],
+        if (explanation.healthGuidance.isNotEmpty) ...[
+          const Divider(height: 24),
+          const Text(
+            '건강관리 안내',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: AppColors.text,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _ExplanationBulletList(items: explanation.healthGuidance),
+        ],
+      ],
+    );
+  }
+}
+
+class _ExplanationBulletList extends StatelessWidget {
+  const _ExplanationBulletList({required this.items});
+
+  final List<String> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var index = 0; index < items.length; index++) ...[
+          if (index > 0) const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 7),
+                child: Icon(Icons.circle, size: 5, color: AppColors.blue),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  items[index],
+                  style: const TextStyle(fontSize: 13, height: 1.5),
+                ),
               ),
             ],
           ),

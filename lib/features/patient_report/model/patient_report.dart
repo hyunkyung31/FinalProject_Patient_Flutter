@@ -312,6 +312,76 @@ class PatientIntegratedApproval {
   }
 }
 
+class PatientResultExplanation {
+  const PatientResultExplanation({
+    required this.reportId,
+    required this.reportVersion,
+    required this.overview,
+    required this.easyExplanations,
+    required this.healthGuidance,
+    required this.doctorQuestions,
+  });
+
+  final int? reportId;
+  final String? reportVersion;
+  final String overview;
+  final List<PatientResultEasyExplanation> easyExplanations;
+  final List<String> healthGuidance;
+  final List<String> doctorQuestions;
+
+  factory PatientResultExplanation.fromJson(Map<String, dynamic> json) {
+    return PatientResultExplanation(
+      reportId: _nullableInt(json['report_id']),
+      reportVersion: json['report_version']?.toString(),
+      overview: json['overview']?.toString().trim() ?? '',
+      easyExplanations: _parseEasyExplanations(json['easy_explanations']),
+      healthGuidance: _parseStringList(json['health_guidance']),
+      doctorQuestions: _parseStringList(json['doctor_questions']),
+    );
+  }
+}
+
+class PatientResultEasyExplanation {
+  const PatientResultEasyExplanation({required this.title, required this.text});
+
+  final String title;
+  final String text;
+
+  factory PatientResultEasyExplanation.fromJson(Map<String, dynamic> json) {
+    return PatientResultEasyExplanation(
+      title: json['title']?.toString().trim() ?? '',
+      text: json['text']?.toString().trim() ?? '',
+    );
+  }
+}
+
+List<PatientResultEasyExplanation> _parseEasyExplanations(dynamic value) {
+  if (value is! List) {
+    return const [];
+  }
+
+  return value
+      .whereType<Map>()
+      .map(
+        (item) => PatientResultEasyExplanation.fromJson(
+          Map<String, dynamic>.from(item),
+        ),
+      )
+      .where((item) => item.title.isNotEmpty && item.text.isNotEmpty)
+      .toList();
+}
+
+List<String> _parseStringList(dynamic value) {
+  if (value is! List) {
+    return const [];
+  }
+
+  return value
+      .map((item) => item?.toString().trim() ?? '')
+      .where((item) => item.isNotEmpty)
+      .toList();
+}
+
 class PatientReportDownload {
   const PatientReportDownload({required this.report, required this.file});
 
