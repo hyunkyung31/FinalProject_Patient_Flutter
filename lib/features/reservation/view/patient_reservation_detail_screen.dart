@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import '../../notification/service/notification_ui_signal.dart';
 
 import '../model/patient_reservation.dart';
 import '../model/reservation_change_request.dart';
@@ -31,12 +34,43 @@ class _PatientReservationDetailScreenState
   );
   bool _busy = false;
   bool _sending = false;
+  bool _refreshing = false;
+  bool _hasPendingState = true;
+  int _stableTicks = 0;
+  String? _knownStatus;
+  String? _knownChangeStatus;
+  String? _lastStateSignature;
+  Timer? _refreshTimer;
   String? _error;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    // ?? ??? ??? ?? ?? ??? ???? ?????.
+    _detail.then((item) {
+      if (!mounted) return;
+      _rememberState(item);
+    }, onError: (_) {});
+
+    // ??/?? ?? ??? 1? ???? ?? ??? ?????.
+    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted ||
+          _busy ||
+          ModalRoute.of(context)?.isCurrent != true ||
+          WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+        return;
+      }
+
+      _stableTicks += 1;
+
+      if (_hasPendingState || _stableTicks >= 30) {
+        _stableTicks = 0;
+        _reload(silent: true);
+      }
+    });
+
     if (widget.openQuestionnaire) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _questionnaire();
@@ -46,19 +80,96 @@ class _PatientReservationDetailScreenState
 
   @override
   void dispose() {
+    _refreshTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && mounted && !_busy) _reload();
+    if (state == AppLifecycleState.resumed && mounted && !_busy) {
+      _reload(silent: true);
+    }
   }
 
-  void _reload() => setState(() {
-    _error = null;
-    _detail = widget.repository.getReservation(widget.id);
-  });
+  Future<void> _reload({bool silent = false}) async {
+    if (_refreshing || !mounted) return;
+
+    _refreshing = true;
+
+    final request = widget.repository.getReservation(widget.id);
+
+    if (!silent) {
+      setState(() {
+        _error = null;
+        _detail = request;
+      });
+    }
+
+    try {
+      final item = await request;
+
+      if (!mounted) return;
+
+      final acceptedNow =
+          _knownStatus == 'REQUESTED' && item.status == 'ACCEPTED';
+
+      final previousChangeStatus = _knownChangeStatus;
+      final currentChangeStatus = item.latestChangeRequest?.status;
+
+      final changeUpdated =
+          previousChangeStatus == 'PENDING' &&
+          currentChangeStatus != null &&
+          currentChangeStatus != 'PENDING';
+
+      final changed = _rememberState(item);
+
+      if (changed) {
+        setState(() {
+          _error = null;
+          _detail = Future.value(item);
+        });
+      }
+
+      if (acceptedNow) {
+        NotificationUiSignal.instance.show(
+          '\uC608\uC57D\uC774 \uD655\uC815\uB418\uC5C8\uC5B4\uC694',
+          '\uC9C4\uB8CC \uC77C\uC815\uC774 \uCD5C\uC2E0 \uC815\uBCF4\uB85C \uC5C5\uB370\uC774\uD2B8\uB418\uC5C8\uC2B5\uB2C8\uB2E4.',
+        );
+      } else if (changeUpdated) {
+        NotificationUiSignal.instance.show(
+          '\uC608\uC57D \uBCC0\uACBD \uC0C1\uD0DC\uAC00 \uC5C5\uB370\uC774\uD2B8\uB418\uC5C8\uC5B4\uC694',
+          '\uCD5C\uC2E0 \uC608\uC57D \uC815\uBCF4\uB97C \uD655\uC778\uD574 \uC8FC\uC138\uC694.',
+        );
+      }
+    } catch (error) {
+      if (!silent && mounted) {
+        setState(() => _error = reservationErrorMessage(error));
+      }
+    } finally {
+      _refreshing = false;
+    }
+  }
+
+  bool _rememberState(PatientReservation item) {
+    final nextSignature =
+        '${item.id}:${item.status}:'
+        '${item.latestChangeRequest?.status ?? ''}:'
+        '${item.reservedAt.toIso8601String()}';
+
+    final changed =
+        _lastStateSignature != null && _lastStateSignature != nextSignature;
+
+    _lastStateSignature = nextSignature;
+    _knownStatus = item.status;
+    _knownChangeStatus = item.latestChangeRequest?.status;
+
+    _hasPendingState =
+        item.status == 'REQUESTED' ||
+        item.latestChangeRequest?.status == 'PENDING';
+
+    return changed;
+  }
 
   Future<void> _questionnaire() async {
     final submitted = await Navigator.of(context).push<bool>(

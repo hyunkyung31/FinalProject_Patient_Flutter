@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_colors.dart';
@@ -11,6 +13,7 @@ import '../../reservation/model/patient_reservation.dart';
 import '../../reservation/repository/reservation_repository.dart';
 import '../../patient_services/view/patient_services_screen.dart';
 import '../../notification/view/notification_screen.dart';
+import '../../notification/service/notification_ui_signal.dart';
 import '../../pharmacy/pharmacy_screen.dart';
 import '../../pharmacy/pharmacy_repository.dart';
 import '../../health_management/repository/health_mission_repository.dart';
@@ -1001,13 +1004,37 @@ class _UpcomingReservationCard extends StatefulWidget {
       _UpcomingReservationCardState();
 }
 
-class _UpcomingReservationCardState extends State<_UpcomingReservationCard> {
+class _UpcomingReservationCardState extends State<_UpcomingReservationCard>
+    with WidgetsBindingObserver {
   Future<List<PatientReservation>>? _future;
+  Timer? _refreshTimer;
+  bool _refreshing = false;
+  bool _hasPendingReservation = true;
+  int _stableTicks = 0;
+  Map<int, String> _knownStatuses = <int, String>{};
+  String? _lastReservationStateSignature;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
+
+    // ???? ?? ?? ??? ?? ?? ??? ?????.
+    _refreshTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted ||
+          ModalRoute.of(context)?.isCurrent != true ||
+          WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+        return;
+      }
+
+      _stableTicks += 1;
+
+      if (_hasPendingReservation || _stableTicks >= 30) {
+        _stableTicks = 0;
+        _refreshSilently();
+      }
+    });
   }
 
   @override
@@ -1019,8 +1046,99 @@ class _UpcomingReservationCardState extends State<_UpcomingReservationCard> {
     }
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        mounted &&
+        ModalRoute.of(context)?.isCurrent == true) {
+      _refreshSilently();
+    }
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
   void _load() {
-    _future = widget.repository?.getReservations();
+    final future = widget.repository?.getReservations();
+    _future = future;
+
+    future?.then((items) {
+      if (!mounted) return;
+      _rememberState(items);
+    }, onError: (_) {});
+  }
+
+  Future<void> _refreshSilently() async {
+    final repository = widget.repository;
+
+    if (repository == null || _refreshing || !mounted) return;
+
+    _refreshing = true;
+
+    try {
+      final items = await repository.getReservations();
+
+      if (!mounted) return;
+
+      var acceptedNow = false;
+
+      for (final item in items) {
+        if (_knownStatuses[item.id] == 'REQUESTED' &&
+            item.status == 'ACCEPTED') {
+          acceptedNow = true;
+        }
+      }
+
+      final changed = _rememberState(items);
+
+      if (changed) {
+        setState(() {
+          _future = Future.value(items);
+        });
+      }
+
+      if (acceptedNow) {
+        NotificationUiSignal.instance.show(
+          '\uC608\uC57D\uC774 \uD655\uC815\uB418\uC5C8\uC5B4\uC694',
+          '\uC9C4\uB8CC \uC77C\uC815\uC774 \uCD5C\uC2E0 \uC815\uBCF4\uB85C \uC5C5\uB370\uC774\uD2B8\uB418\uC5C8\uC2B5\uB2C8\uB2E4.',
+        );
+      }
+    } catch (_) {
+      // ?? ?? ?? ? ?? ?? ??? ?????.
+    } finally {
+      _refreshing = false;
+    }
+  }
+
+  bool _rememberState(List<PatientReservation> items) {
+    final nextSignature = items
+        .map(
+          (item) =>
+              '${item.id}:${item.status}:'
+              '${item.latestChangeRequest?.status ?? ''}:'
+              '${item.reservedAt.toIso8601String()}',
+        )
+        .join('|');
+
+    final changed =
+        _lastReservationStateSignature != null &&
+        _lastReservationStateSignature != nextSignature;
+
+    _lastReservationStateSignature = nextSignature;
+
+    _knownStatuses = {for (final item in items) item.id: item.status};
+
+    _hasPendingReservation = items.any(
+      (item) =>
+          item.status == 'REQUESTED' ||
+          item.latestChangeRequest?.status == 'PENDING',
+    );
+
+    return changed;
   }
 
   Future<void> _runAndReload(Future<void> Function() action) async {
@@ -1028,7 +1146,7 @@ class _UpcomingReservationCardState extends State<_UpcomingReservationCard> {
 
     if (!mounted) return;
 
-    setState(_load);
+    await _refreshSilently();
   }
 
   PatientReservation? _nextReservation(List<PatientReservation> items) {
