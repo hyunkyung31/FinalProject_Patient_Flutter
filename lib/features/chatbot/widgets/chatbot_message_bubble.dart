@@ -7,50 +7,81 @@ class ChatbotMessageBubble extends StatelessWidget {
 
   final ChatbotMessage message;
 
+  static const _bomiAsset = 'assets/images/bomi/bomi_chatbot.png';
+
   @override
   Widget build(BuildContext context) {
     final isPatient = message.isPatient;
     final scheme = Theme.of(context).colorScheme;
 
-    return Align(
-      alignment: isPatient ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 320),
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isPatient ? scheme.primary : scheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(18),
-            topRight: const Radius.circular(18),
-            bottomLeft: Radius.circular(isPatient ? 18 : 4),
-            bottomRight: Radius.circular(isPatient ? 4 : 18),
-          ),
+    final bubble = Container(
+      constraints: const BoxConstraints(maxWidth: 285),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      decoration: BoxDecoration(
+        color: isPatient
+            ? scheme.primary
+            : scheme.primary.withValues(alpha: 0.07),
+        border: isPatient
+            ? null
+            : Border.all(color: scheme.primary.withValues(alpha: 0.10)),
+        borderRadius: BorderRadius.only(
+          topLeft: const Radius.circular(20),
+          topRight: const Radius.circular(20),
+          bottomLeft: Radius.circular(isPatient ? 20 : 7),
+          bottomRight: Radius.circular(isPatient ? 7 : 20),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            message.messageText,
+            style: TextStyle(
+              color: isPatient ? scheme.onPrimary : scheme.onSurface,
+              height: 1.5,
+            ),
+          ),
+          if (!isPatient && message.normalizedSafetyStatus == 'ESCALATED') ...[
+            const SizedBox(height: 8),
             Text(
-              message.messageText,
+              '??? ??? ??? ??? ? ???.',
               style: TextStyle(
-                color: isPatient ? scheme.onPrimary : scheme.onSurface,
-                height: 1.4,
+                color: scheme.onSurface,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
             ),
-            if (!isPatient &&
-                message.normalizedSafetyStatus == 'ESCALATED') ...[
-              const SizedBox(height: 8),
-              Text(
-                '의료진 확인이 필요한 내용일 수 있어요.',
-                style: TextStyle(
-                  color: scheme.onSurface,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+          ],
+        ],
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        mainAxisAlignment: isPatient
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!isPatient) ...[
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: scheme.surface,
+                border: Border.all(
+                  color: scheme.primary.withValues(alpha: 0.12),
                 ),
               ),
-            ],
+              clipBehavior: Clip.antiAlias,
+              child: Image.asset(_bomiAsset, fit: BoxFit.cover),
+            ),
+            const SizedBox(width: 9),
           ],
-        ),
+          Flexible(child: bubble),
+        ],
       ),
     );
   }
