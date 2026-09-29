@@ -10,6 +10,30 @@ class PatientReportRepository {
 
   final ApiClient client;
 
+  // Keep successful explanation responses during the current login session.
+  static final Expando<_PatientExplanationMemoryCache> _explanationCaches =
+      Expando<_PatientExplanationMemoryCache>();
+
+  _PatientExplanationMemoryCache get _explanationCache {
+    final authorizationHeader = client.dio.options.headers['Authorization']
+        ?.toString();
+
+    var cache = _explanationCaches[client];
+
+    if (cache == null) {
+      cache = _PatientExplanationMemoryCache();
+      _explanationCaches[client] = cache;
+    }
+
+    // Clear patient data if the authenticated session changes.
+    if (cache.authorizationHeader != authorizationHeader) {
+      cache.clear();
+      cache.authorizationHeader = authorizationHeader;
+    }
+
+    return cache;
+  }
+
   // 공개된 최종 결과 목록 조회
   Future<List<PatientReleasedResult>> getResults() async {
     final response = await client.dio.get<dynamic>('/api/patient/results/');
@@ -46,6 +70,73 @@ class PatientReportRepository {
     }
 
     return PatientIntegratedResult.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  // Generate a patient-friendly explanation from the released result.
+  Future<PatientResultExplanation> getResultExplanation(
+    int resultId, {
+    String? reportVersion,
+    bool forceRefresh = false,
+  }) {
+    final normalizedVersion = reportVersion?.trim();
+
+    // Do not reuse an explanation when the report version is unknown.
+    if (normalizedVersion == null || normalizedVersion.isEmpty) {
+      return _fetchResultExplanation(resultId);
+    }
+
+    final cacheKey = '$resultId:$normalizedVersion';
+    final cache = _explanationCache;
+
+    if (forceRefresh) {
+      cache.values.remove(cacheKey);
+      cache.inFlight.remove(cacheKey);
+    } else {
+      final cached = cache.values[cacheKey];
+
+      if (cached != null) {
+        return Future.value(cached);
+      }
+
+      final inFlight = cache.inFlight[cacheKey];
+
+      if (inFlight != null) {
+        return inFlight;
+      }
+    }
+
+    final future = _fetchResultExplanation(resultId);
+    cache.inFlight[cacheKey] = future;
+
+    return future
+        .then((explanation) {
+          // A newer forced request must not be overwritten by an older response.
+          if (identical(cache.inFlight[cacheKey], future)) {
+            cache.values[cacheKey] = explanation;
+          }
+
+          return explanation;
+        })
+        .whenComplete(() {
+          if (identical(cache.inFlight[cacheKey], future)) {
+            cache.inFlight.remove(cacheKey);
+          }
+        });
+  }
+
+  Future<PatientResultExplanation> _fetchResultExplanation(int resultId) async {
+    final response = await client.dio.post<dynamic>(
+      '/api/patient/results/$resultId/explanation/',
+      options: Options(receiveTimeout: const Duration(seconds: 40)),
+    );
+
+    final data = response.data;
+
+    if (data is! Map) {
+      throw const FormatException('결과 설명 형식이 올바르지 않습니다.');
+    }
+
+    return PatientResultExplanation.fromJson(Map<String, dynamic>.from(data));
   }
 
   // XCA 이미지는 환자 JWT가 필요한 보호 API이므로
@@ -131,6 +222,18 @@ class PatientReportRepository {
     }
 
     return download;
+  }
+}
+
+class _PatientExplanationMemoryCache {
+  String? authorizationHeader;
+
+  final Map<String, PatientResultExplanation> values = {};
+  final Map<String, Future<PatientResultExplanation>> inFlight = {};
+
+  void clear() {
+    values.clear();
+    inFlight.clear();
   }
 }
 
