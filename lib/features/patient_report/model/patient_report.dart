@@ -200,6 +200,7 @@ class PatientIntegratedCt {
     required this.available,
     required this.status,
     this.summary,
+    this.doctorOpinion,
   });
 
   final bool available;
@@ -208,6 +209,7 @@ class PatientIntegratedCt {
   // CCTA AVAILABLE 실제 payload 구조가 확인되기 전까지
   // 원본 값을 유지하고 UI에서는 안전하게 상태 중심으로 표시합니다.
   final Object? summary;
+  final String? doctorOpinion;
 
   bool get isPending => status.toUpperCase() == 'PENDING';
 
@@ -216,6 +218,7 @@ class PatientIntegratedCt {
       available: json['available'] == true,
       status: json['status']?.toString() ?? '',
       summary: json['summary'],
+      doctorOpinion: json['doctor_opinion']?.toString(),
     );
   }
 }

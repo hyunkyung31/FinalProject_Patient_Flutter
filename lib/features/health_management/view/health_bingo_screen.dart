@@ -260,7 +260,7 @@ class _BingoHeroCard extends StatelessWidget {
     final maxLines = board.maxLines > 0 ? board.maxLines : 8;
 
     return Container(
-      height: 146,
+      height: 150,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,

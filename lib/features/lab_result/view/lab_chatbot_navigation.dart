@@ -48,7 +48,7 @@ Future<void> openLabChatbot({
   try {
     final conversation = await _getOrCreateLabConversation(repository);
 
-    await repository.sendMessage(
+    final sendResult = await repository.sendMessage(
       conversationId: conversation.id,
       messageText: message,
     );
@@ -64,6 +64,7 @@ Future<void> openLabChatbot({
         builder: (_) => ChatbotConversationScreen(
           repository: repository,
           conversation: conversation,
+          initialFocusMessageId: sendResult.patientMessage.id,
         ),
       ),
     );
