@@ -295,7 +295,7 @@ class _HealthWalkScreenState extends State<HealthWalkScreen>
       backgroundColor: const Color(0xFFF8FAFD),
       appBar: AppBar(
         title: const Text(
-          '리듬산책',
+          '두근산책',
           style: TextStyle(color: AppColors.navy, fontWeight: FontWeight.w800),
         ),
         backgroundColor: Colors.white,
@@ -327,6 +327,73 @@ class _HealthWalkScreenState extends State<HealthWalkScreen>
           fit: StackFit.expand,
           children: [
             const CustomPaint(painter: _HeroLandscapePainter()),
+
+            // Decorative park elements for the DUGN walk hero.
+            Positioned(
+              left: 4,
+              bottom: -4,
+              width: 72,
+              height: 78,
+              child: Opacity(
+                opacity: 0.72,
+                child: Image.asset(
+                  'assets/images/bomi/walk_tree_small.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            Positioned(
+              left: 88,
+              bottom: 2,
+              width: 66,
+              height: 34,
+              child: Opacity(
+                opacity: 0.80,
+                child: Image.asset(
+                  'assets/images/bomi/walk_flower_patch.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            Positioned(
+              right: 82,
+              bottom: 5,
+              width: 58,
+              height: 42,
+              child: Opacity(
+                opacity: 0.72,
+                child: Image.asset(
+                  'assets/images/bomi/walk_bench.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            Positioned(
+              right: 8,
+              bottom: 0,
+              width: 52,
+              height: 34,
+              child: Opacity(
+                opacity: 0.80,
+                child: Image.asset(
+                  'assets/images/bomi/walk_flower_patch.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            Positioned(
+              left: 148,
+              bottom: 8,
+              width: 28,
+              height: 28,
+              child: Opacity(
+                opacity: 0.88,
+                child: Image.asset(
+                  'assets/images/bomi/walk_tulip.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 23, 12, 18),
               child: Row(
@@ -349,7 +416,7 @@ class _HealthWalkScreenState extends State<HealthWalkScreen>
                                 style: TextStyle(color: AppColors.navy),
                               ),
                               TextSpan(
-                                text: '리듬산책',
+                                text: '두근산책',
                                 style: TextStyle(color: _pink),
                               ),
                             ],

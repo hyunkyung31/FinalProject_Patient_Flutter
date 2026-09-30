@@ -726,6 +726,7 @@ class _IntegratedCtResultContent extends StatelessWidget {
     }
 
     final summary = ct.summary;
+    final opinion = ct.doctorOpinion?.trim();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -763,6 +764,45 @@ class _IntegratedCtResultContent extends StatelessWidget {
               color: AppColors.mutedText,
             ),
           ),
+        if (opinion != null && opinion.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.blue.withValues(alpha: 0.055),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(
+                      Icons.medical_information_outlined,
+                      size: 16,
+                      color: AppColors.blue,
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      '의료진 확인 내용',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.blue,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  opinion,
+                  style: const TextStyle(fontSize: 13, height: 1.5),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }

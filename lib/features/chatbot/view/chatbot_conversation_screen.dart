@@ -10,10 +10,12 @@ class ChatbotConversationScreen extends StatefulWidget {
     super.key,
     required this.repository,
     required this.conversation,
+    this.initialFocusMessageId,
   });
 
   final ChatbotRepository repository;
   final ChatbotConversation conversation;
+  final int? initialFocusMessageId;
 
   @override
   State<ChatbotConversationScreen> createState() =>
@@ -23,6 +25,9 @@ class ChatbotConversationScreen extends StatefulWidget {
 class _ChatbotConversationScreenState extends State<ChatbotConversationScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  final _initialFocusMessageKey = GlobalKey();
+
+  bool _initialFocusApplied = false;
 
   static const _quickQuestions = [
     "콜레스테롤이 뭐예요?",
@@ -79,7 +84,12 @@ class _ChatbotConversationScreenState extends State<ChatbotConversationScreen> {
         _errorMessage = null;
       });
 
-      _scrollToBottom();
+      if (!_initialFocusApplied && widget.initialFocusMessageId != null) {
+        _initialFocusApplied = true;
+        _scrollToInitialMessage();
+      } else {
+        _scrollToBottom();
+      }
     } catch (error) {
       if (!mounted) {
         return;
@@ -232,6 +242,28 @@ class _ChatbotConversationScreenState extends State<ChatbotConversationScreen> {
     }
   }
 
+  void _scrollToInitialMessage() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      final messageContext = _initialFocusMessageKey.currentContext;
+
+      if (messageContext == null) {
+        _scrollToBottom();
+        return;
+      }
+
+      Scrollable.ensureVisible(
+        messageContext,
+        alignment: 0.06,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) {
@@ -323,6 +355,22 @@ class _ChatbotConversationScreenState extends State<ChatbotConversationScreen> {
             ],
           ),
         ),
+      );
+    }
+
+    if (widget.initialFocusMessageId != null) {
+      return ListView(
+        controller: _scrollController,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        children: [
+          for (final message in messages)
+            KeyedSubtree(
+              key: message.id == widget.initialFocusMessageId
+                  ? _initialFocusMessageKey
+                  : ValueKey('chat-message-${message.id}'),
+              child: ChatbotMessageBubble(message: message),
+            ),
+        ],
       );
     }
 
